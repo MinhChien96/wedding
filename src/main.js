@@ -23,6 +23,7 @@ const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (a, b) => a + Math.random() * (b - a);
 const isTouch = matchMedia('(pointer: coarse)').matches;
+document.body.classList.toggle('touch', isTouch);
 // localStorage có thể bị chặn (VD: trang nhúng trong iframe sandbox) → không để lỗi làm hỏng trang
 const store = {
   getItem(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -370,7 +371,7 @@ async function init() {
     if (!music.on) setMusic(true);
     music.sfx('chime');
     addChat('', `Chào mừng ${prof.name} đến dự đám cưới ${WEDDING.groom} & ${WEDDING.bride}! 💕`, null, true);
-    setTimeout(() => addChat('', '💡 Mẹo: lại gần đồ vật để thấy nút tương tác (E/R), bấm vào khách khác để giao lưu, phím F/G/L/U/P cho pháo hoa, tung hoa, đèn trời, bóng bay, chụp ảnh.', null, true), 1500);
+    if (!isTouch) setTimeout(() => addChat('', '💡 Mẹo: lại gần đồ vật để thấy nút tương tác (E/R), bấm vào khách khác để giao lưu, phím F/G/L/U/P cho pháo hoa, tung hoa, đèn trời, bóng bay, chụp ảnh.', null, true), 1500);
   }
 
   function leavePlay() {
@@ -400,7 +401,7 @@ async function init() {
     const b = document.createElement('button');
     b.dataset.emote = em.id;
     b.title = `${em.name} (phím ${em.key})`;
-    b.innerHTML = `${em.icon}<small>${em.key} · ${em.name}</small>`;
+    b.innerHTML = `${em.icon}<small><span class="k">${em.key} · </span>${em.name}</small>`;
     b.addEventListener('click', () => setEmote(state.emote === em.id ? null : em.id));
     emoteBar.append(b);
   }
@@ -475,7 +476,7 @@ async function init() {
     const b = document.createElement('button');
     b.dataset.action = a.id;
     b.title = `${a.name} (phím ${a.key})`;
-    b.innerHTML = `${a.icon} ${a.name}<kbd>${a.key}</kbd>`;
+    b.innerHTML = `${a.icon} <span class="nm">${a.name}</span><kbd>${a.key}</kbd>`;
     b.addEventListener('click', () => doAction(a));
     actionBar.append(b);
     a.btn = b;
@@ -581,7 +582,7 @@ async function init() {
     promptEl.classList.toggle('hidden', !opts.length);
     opts.slice(0, 2).forEach((o, i) => {
       const b = document.createElement('button');
-      b.innerHTML = `<kbd>${i ? 'R' : 'E'}</kbd>${o.label}`;
+      b.innerHTML = `${isTouch ? '' : `<kbd>${i ? 'R' : 'E'}</kbd>`}${o.label}`;
       b.addEventListener('click', () => runOption(i));
       promptEl.append(b);
     });
@@ -1121,6 +1122,20 @@ async function init() {
     while (chatLog.children.length > 30) chatLog.firstChild.remove();
     setTimeout(() => div.classList.add('old'), 20000);
   }
+  // Trên điện thoại: menu gọn (☰) và ô chat chỉ hiện khi bấm 💬
+  const closeMenu = () => document.body.classList.remove('menu-open');
+  $('#hMenu').addEventListener('click', () => {
+    document.body.classList.toggle('menu-open');
+    zoneMenu.classList.add('hidden');
+  });
+  $('#hudActions').addEventListener('click', (e) => { if (e.target.closest('button')) closeMenu(); });
+  $('#hChat').addEventListener('click', () => {
+    closeMenu();
+    document.body.classList.add('chat-open');
+    chatInput.focus();
+  });
+  chatInput.addEventListener('blur', () => setTimeout(() => document.body.classList.remove('chat-open'), 150));
+  canvas.addEventListener('pointerdown', closeMenu);
   $('#chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const text = chatInput.value.trim();
@@ -1144,7 +1159,7 @@ async function init() {
   // ---------- Nhạc & đồ hoạ ----------
   function setMusic(on) {
     if (on) music.start(); else music.stop();
-    $('#btnMusic').textContent = music.on ? '🔇 Tắt nhạc' : '🎵 Bật nhạc';
+    $('#btnMusic').innerHTML = music.on ? '🔇<span class="lb"> Tắt nhạc</span>' : '🎵<span class="lb"> Bật nhạc</span>';
     if (on && music.playingTrack) toast(`🎵 Đang phát: <b>${esc(music.trackTitle)}</b>`);
   }
   if (WEDDING.music?.src) {
@@ -1161,7 +1176,7 @@ async function init() {
   function setFx(on) {
     hiFx = on;
     store.setItem('wedding-fx', on ? '1' : '0');
-    $('#btnFx').textContent = on ? '✨ Đồ hoạ cao' : '⚡ Đồ hoạ nhẹ';
+    $('#btnFx').innerHTML = on ? '✨<span class="lb"> Đồ hoạ cao</span>' : '⚡<span class="lb"> Đồ hoạ nhẹ</span>';
     ambient.fireflies.visible = on;
     ambient.petalMesh.visible = on;
   }
@@ -1172,13 +1187,13 @@ async function init() {
   const onlinePill = $('#online');
   const localWishes = JSON.parse(store.getItem('wedding-wishes') || '[]');
   state.wishes = localWishes;
-  net.on('status', (on) => { if (!on) onlinePill.textContent = '⚪ Offline'; });
+  net.on('status', (on) => { if (!on) onlinePill.innerHTML = '⚪<span class="lb"> Offline</span>'; });
   net.on('welcome', (m) => {
     state.wishes = m.wishes || [];
     for (const p of m.peers) addPeer(p);
   });
   net.on('reset', () => { for (const id of [...state.peers.keys()]) removePeer(id); });
-  net.on('count', (m) => { onlinePill.textContent = `🟢 ${m.joined} khách đang dự · ${m.watching} người xem`; });
+  net.on('count', (m) => { onlinePill.innerHTML = `🟢 ${m.joined}<span class="lb-s"> khách</span><span class="lb"> đang dự · ${m.watching} người xem</span>`; });
   net.on('join', (m) => {
     addPeer(m.peer);
     if (state.mode === 'play') addChat('', `${m.peer.name} vừa đến dự tiệc 🎉`, null, true);
@@ -1439,7 +1454,7 @@ async function init() {
       badge.classList.remove('bump');
       void badge.offsetWidth;
       badge.classList.add('bump');
-      addChat('', `Bạn đã vào khu: ${zn.icon} ${zn.name}`, null, true);
+      if (!isTouch) addChat('', `Bạn đã vào khu: ${zn.icon} ${zn.name}`, null, true);
       music.party = zn.id === 'party';
     }
 

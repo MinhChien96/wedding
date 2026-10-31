@@ -2,7 +2,7 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Chiến & Xim – Đám cưới 3D 💒</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💒</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -26,9 +26,9 @@
         <span class="sub" id="weddingDate"></span>
       </div>
       <div class="top-actions">
-        <span id="online" class="pill">⚪ Offline</span>
+        <span id="online" class="pill">⚪<span class="lb"> Offline</span></span>
         <button id="btnFx" class="pill btn" title="Bật/tắt hiệu ứng ánh sáng (bloom) và hạt">✨ Đồ hoạ cao</button>
-        <button id="btnMusic" class="pill btn">🎵 Bật nhạc</button>
+        <button id="btnMusic" class="pill btn">🎵<span class="lb"> Bật nhạc</span></button>
       </div>
     </header>
 
@@ -107,6 +107,8 @@
       <div id="actionBar"></div>
       <div id="emoteBar"></div>
       <div id="socialMenu" class="hidden"></div>
+      <button id="hMenu" class="mobile-only round" aria-label="Menu">☰</button>
+      <button id="hChat" class="mobile-only round" aria-label="Nhắn tin">💬</button>
       <div id="hudActions">
         <button id="hGift">💌 Mừng cưới</button>
         <button id="hBook">📖 Sổ lưu bút</button>
