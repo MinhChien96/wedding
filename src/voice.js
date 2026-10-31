@@ -89,7 +89,6 @@ export class Voice {
     const me = this.r(`voice/${this.id}`);
     try {
       await onDisconnect(me).remove();
-      await onDisconnect(this.r(`rtc/${this.id}`)).remove();
       await set(me, { mic: this.micOn, stage: false });
     } catch (e) {
       // Thường do luật Firebase chưa cho phép voice/ và rtc/
@@ -127,7 +126,6 @@ export class Voice {
     this.unsubs = [];
     this.members.clear();
     remove(this.r(`voice/${this.id}`)).catch(() => {});
-    remove(this.r(`rtc/${this.id}`)).catch(() => {});
     this.local?.getTracks().forEach((t) => t.stop());
     this.local = null;
     this.localLevel = null;
