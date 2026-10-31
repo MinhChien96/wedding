@@ -1743,6 +1743,11 @@ async function init() {
       ? '🎙️ Đã bật voice! Đứng gần ai sẽ nghe người đó. <b>Nên đeo tai nghe</b> để không bị vọng tiếng.'
       : '🎧 Bạn đang ở chế độ chỉ nghe. Bấm nút 🎧 bất cứ lúc nào để bật micro.', 6500);
     if (pendingStage && voice.hasMic) { pendingStage = false; stageMic(); }
+    // iPhone/iPad không cho web chỉnh âm lượng video YouTube → tắt nhạc nền khi dùng voice để nghe rõ giọng
+    if (onIOS && screenVideo.ok && music.on) {
+      setMusic(false);
+      toast('🔇 Trên iPhone nhạc nền được tắt khi dùng voice để nghe rõ giọng nói. Bấm 🎵 nếu muốn bật lại.', 6000);
+    }
   }
   $('#micAllow').addEventListener('click', () => {
     // Gọi xin quyền NGAY trong lần bấm (không await trước) để trình duyệt hiện hộp hỏi quyền
