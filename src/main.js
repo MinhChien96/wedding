@@ -1455,9 +1455,9 @@ async function init() {
     updatePrompt();
     checkHearts();
 
-    // Gửi trạng thái (10 lần/giây khi có thay đổi)
+    // Gửi trạng thái (tối đa 5 lần/giây, chỉ khi có thay đổi – Firebase giữ trạng thái cuối nên không cần gửi lại định kỳ)
     const sig = `${me.pos.x.toFixed(2)},${me.pos.y.toFixed(2)},${me.pos.z.toFixed(2)},${me.yaw.toFixed(2)},${anim}`;
-    if (now - me.lastSend > 100 && (sig !== me.sent || now - me.lastSend > 2000)) {
+    if (now - me.lastSend > 200 && sig !== me.sent) {
       me.lastSend = now;
       me.sent = sig;
       net.send({ t: 's', p: arr3(me.pos), r: +me.yaw.toFixed(2), a: anim, z: state.zone?.id });

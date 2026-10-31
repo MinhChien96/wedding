@@ -16,13 +16,13 @@ Web 3D cho khách mời tham dự đám cưới online: mỗi người tạo nh�
 - **Đồ hoạ**: bloom phát sáng cho đèn/LED/pháo hoa, trời hoàng hôn có mặt trời và sao lấp lánh, đom đóm, cánh hoa rơi. Nút "✨ Đồ hoạ cao/nhẹ" để tắt bớt trên máy yếu (mặc định nhẹ trên điện thoại).
 - **Âm thanh hiệu ứng** tự sinh: pháo hoa, cụng ly, màn trập máy ảnh, chuông...
 - **Chat bong bóng**: chỉ người cùng khu mới thấy, tự ẩn sau 20 giây, có thể tắt.
-- **Mừng cưới + sổ lưu bút**: lời chúc được phát cho mọi người (kèm pháo giấy) và lưu vào `server/wishes.json`.
+- **Mừng cưới + sổ lưu bút**: lời chúc được phát cho mọi người (kèm pháo giấy) và lưu lâu dài trong Firebase Realtime Database.
 - **Nhạc nền "I Do – Đức Phúc"**: đặt file vào `public/music/i-do.mp3` (cần có quyền sử dụng bài hát). Nếu chưa có file, web tự phát nhạc nền tự sinh bằng Web Audio. Đổi bài trong `WEDDING.music` ở `src/config.js`.
 - **Vật trang trí & tương tác mới**: đài phun nước (ném đồng xu ước nguyện), xe hoa "Just Married" (bấm còi, chụp ảnh), chuông cưới trên cổng hoa, đèn lồng đỏ dọc lối đi, bảng chữ Hỷ, xích đu hoa, tường khóa tình yêu, tháp champagne (rót cho cả tiệc), xe kem, đàn piano trên sân khấu, hồ thiên nga (cho ăn), bướm bay, chú cún corgi (xoa đầu, rủ đi dạo).
 - **Săn trái tim vàng**: 10 trái tim vàng trốn quanh tiệc, tìm đủ để nhận danh hiệu "Thám tử tình yêu".
 - **Chương trình MC**: cứ 2 phút có một tiết mục chung cho mọi người (trao nụ hôn, nâng ly, pháo hoa, điệu nhảy đầu tiên, tung hoa cưới, thả đèn trời), đồng bộ theo giờ thực.
 - **Cô dâu chú rể** đứng ở lễ đài và chào khi bạn lại gần. Có thêm khách ảo đi lại cho đông vui.
-- **Realtime nhiều người** qua WebSocket. Nếu không có server, web tự chạy ở chế độ offline.
+- **Realtime nhiều người** qua Firebase Realtime Database (không cần server riêng). Nếu không kết nối được, web tự chạy ở chế độ offline.
 
 ## Chạy thử
 
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Mở http://localhost:5173. Lệnh này chạy cả Vite (5173) và server realtime (3001). Mở thêm vài tab để thấy nhiều người cùng lúc. Máy khác trong cùng mạng LAN truy cập qua `http://<IP-máy>:5173`.
+Mở http://localhost:5173. Mở thêm vài tab để thấy nhiều người cùng lúc. Máy khác trong cùng mạng LAN truy cập qua `http://<IP-máy>:5173`.
 
 ## Tuỳ biến
 
@@ -43,32 +43,8 @@ Mở http://localhost:5173. Lệnh này chạy cả Vite (5173) và server realt
 
 ## Deploy
 
-Server realtime cần một máy chủ Node chạy liên tục. Vercel không giữ được kết nối WebSocket.
+Web là site tĩnh (Vite), realtime dùng Firebase Realtime Database nên deploy được lên Vercel/Netlify/Cloudflare Pages.
 
-**Cách 1: một server làm tất cả** (Render, Railway, Fly.io, VPS):
-
-```bash
-npm install && npm run build
-npm start            # phục vụ dist/ và WebSocket /ws trên PORT (mặc định 3001)
-```
-
-**Cách 2: frontend trên Vercel/Netlify, realtime ở nơi khác**: deploy `server/` lên Render/Railway, rồi build frontend với biến môi trường:
-
-```
-VITE_WS_URL=wss://ten-server-cua-ban.onrender.com/ws
-```
-
-## Cấu trúc
-
-```
-src/
-  main.js      – vòng lặp chính, camera, điều khiển, UI, kết nối mạng
-  venue.js     – dựng khung cảnh 3D, khu vực, va chạm
-  avatar.js    – nhân vật low-poly và animation
-  bots.js      – khách ảo
-  effects.js   – trái tim, pháo giấy
-  audio.js     – nhạc nền Web Audio
-  network.js   – client WebSocket
-  textures.js  – chữ, nhãn tên, bong bóng chat vẽ bằng canvas
-server/index.js – WebSocket server + phục vụ file tĩnh
-```
+- **Vercel**: Import repo → Framework Vite (tự nhận) → Deploy. Build `npm run build`, output `dist`.
+- **Firebase**: cấu hình nằm trong `src/network.js`. Dán nội dung `database.rules.json` vào Firebase Console → Realtime Database → Rules → Publish (thay cho test mode, vốn hết hạn sau 30 ngày).
+- Dữ liệu nằm dưới nhánh `wedding/`: `presence` (người đang mở trang), `peers` (khách đã vào), `st` (vị trí), `events` (chat/hiệu ứng, tự dọn sau 15 giây), `wishes` (sổ lưu bút).
