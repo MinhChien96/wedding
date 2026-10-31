@@ -50,6 +50,20 @@
             ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 20 && newData.child('at').isNumber() && (!newData.child('score').exists() || (newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 20))"
           }
         }
+      },
+      "voice": {
+        "$id": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.child('mic').isBoolean() && newData.child('stage').isBoolean())"
+        }
+      },
+      "rtc": {
+        "$to": {
+          "$msg": {
+            ".write": true,
+            ".validate": "!newData.exists() || (newData.child('from').isString() && newData.child('type').isString() && (!newData.child('sdp').exists() || newData.child('sdp').val().length < 20000) && (!newData.child('c').exists() || newData.child('c').val().length < 2000))"
+          }
+        }
       }
     }
   }

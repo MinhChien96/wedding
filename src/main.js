@@ -5,7 +5,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { WEDDING, QUIZ, LUCKY_PRIZES, MENU } from './config.js';
+import { WEDDING, QUIZ, LUCKY_PRIZES, MENU, VOICE } from './config.js';
+import { Voice } from './voice.js';
 import { buildVenue, ZONES, zoneAt, zoneById } from './venue.js';
 import { Avatar, OUTFITS, PALETTE, SKIN_TONES, HAIR_COLORS, EMOTES } from './avatar.js';
 import { Net } from './network.js';
@@ -15,7 +16,7 @@ import { Music } from './audio.js';
 import { Effects, FW_COLORS } from './effects.js';
 import { Ambient } from './ambient.js';
 import { buildDecor } from './decor.js';
-import { drawHeart, FONT, SCRIPT } from './textures.js';
+import { drawHeart, canvasTexture, FONT, SCRIPT } from './textures.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -414,6 +415,7 @@ async function init() {
     endPhoto();
     closeSocial();
     net.leave();
+    voice.leave();
     state.follow = null;
     avatars.delete(state.me.av);
     state.me.av.dispose();
@@ -606,7 +608,7 @@ async function init() {
     { x: 6, z: 34.6, r: 1.9, actions: [{ label: '🧧 Bỏ phong bì mừng cưới', run: () => openModal('#giftModal') }] },
     { x: -6, z: 35.3, r: 1.9, actions: [{ label: '📖 Xem sổ lưu bút', run: () => { renderBook(); openModal('#bookModal'); } }] },
     { x: 0, z: 38.3, r: 2.8, actions: [{ label: '🏮 Thả đèn trời', run: () => doAction(ACTIONS[2]) }, { label: '🔔 Rung chuông cưới', run: () => ringBell() }] },
-    { rect: [22, 40, -14, -2.6], actions: [{ label: '🎆 Bắn pháo hoa sân khấu', run: stageShow }, { label: '🎤 Cầm mic hát', run: () => setEmote('sing') }] },
+    { rect: [22, 40, -14, -2.6], actions: [{ label: '🎆 Bắn pháo hoa sân khấu', run: stageShow }, { get label() { return voice.stage ? '🎤 Trả mic' : '🎤 Cầm mic hát (karaoke)'; }, run: () => stageMic() }] },
     { rect: [DF.x0, DF.x1, DF.z0, DF.z1], actions: [{ label: '🪩 Bật đèn Disco', run: () => startDisco() }] },
   ];
 
@@ -1623,6 +1625,96 @@ async function init() {
     } catch { /* người dùng huỷ chia sẻ */ }
   });
 
+  // ---------- Voice chat & karaoke ----------
+  const voice = new Voice({
+    net,
+    iceServers: VOICE.iceServers,
+    range: VOICE.range,
+    maxPeers: VOICE.maxPeers,
+    getPos: (id) => state.peers.get(id)?.av.root.position,
+    myPos: () => state.me?.pos,
+  });
+  const vBtn = $('#hVoice');
+  const micTex = canvasTexture(128, 128, (ctx) => {
+    ctx.fillStyle = '#ff6f91';
+    ctx.beginPath(); ctx.arc(64, 64, 56, 0, Math.PI * 2); ctx.fill();
+    ctx.font = '72px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🎙️', 64, 70);
+  });
+  // Biểu tượng micro nhấp nháy trên đầu người đang nói
+  function setSpeakIcon(av, on) {
+    if (!av) return;
+    if (!av.micIcon) {
+      av.micIcon = new THREE.Sprite(new THREE.SpriteMaterial({ map: micTex, transparent: true, depthWrite: false }));
+      av.micIcon.scale.setScalar(0.42);
+      av.micIcon.position.set(0, 2.62, 0);
+      av.root.add(av.micIcon);
+    }
+    av.micIcon.visible = on;
+  }
+  function voiceUi() {
+    vBtn.classList.toggle('on', voice.joined && voice.micOn);
+    vBtn.classList.toggle('muted', voice.joined && !voice.micOn);
+    vBtn.classList.toggle('stage', voice.stage);
+    vBtn.firstChild.textContent = !voice.joined ? '🎧' : voice.stage ? '🎤' : voice.micOn ? '🎙️' : '🔇';
+    const n = voice.members.size;
+    $('#voiceBadge').textContent = voice.joined && n ? n : '';
+    vBtn.title = !voice.joined ? 'Bật voice chat' : voice.micOn ? 'Đang bật mic · bấm để tắt mic' : 'Mic đang tắt · bấm để bật';
+  }
+  voice.onChange = voiceUi;
+  voice.onSpeaking = (id, on) => {
+    if (id === 'me') { vBtn.classList.toggle('talk', on); if (state.me) setSpeakIcon(state.me.av, on); return; }
+    setSpeakIcon(state.peers.get(id)?.av, on);
+  };
+  voice.onStage = (id, on) => {
+    const p = state.peers.get(id);
+    if (on && p) toast(`🎤 <b>${esc(p.name)}</b> đang cầm mic hát trên sân khấu!`, 5000);
+  };
+  // Có người hát trên sân khấu → giảm nhạc nền để nghe rõ giọng
+  voice.onSinging = (on) => { screenVideo.setVolume(on ? 25 : 100); if (music.musicGain) music.musicGain.gain.value = on ? 0.3 : 1; };
+  async function voiceJoin() {
+    if (!voice.supported) { toast('Trình duyệt này chưa hỗ trợ voice chat 😢'); return false; }
+    if (!net.online) { toast('Cần kết nối mạng để bật voice chat'); return false; }
+    if (!state.me) return false;
+    const ok = await voice.join();
+    if (!ok) return false;
+    toast(voice.hasMic
+      ? '🎙️ Đã bật voice! Đứng gần ai sẽ nghe người đó. <b>Nên đeo tai nghe</b> để không bị vọng tiếng.'
+      : '🎧 Không dùng được micro, bạn vẫn nghe được mọi người. Cho phép micro trong cài đặt trình duyệt để nói chuyện.', 6500);
+    return true;
+  }
+  vBtn.addEventListener('click', async () => {
+    closeMenu();
+    if (!voice.joined) { await voiceJoin(); return; }
+    if (!voice.hasMic) { toast('Micro chưa được cấp quyền, bạn đang ở chế độ chỉ nghe'); return; }
+    voice.setMic(!voice.micOn);
+    toast(voice.micOn ? '🎙️ Đã bật mic' : '🔇 Đã tắt mic', 1800);
+  });
+  $('#hVoiceLeave').addEventListener('click', () => { voice.leave(); toast('Đã thoát voice chat'); });
+  // Cầm mic sân khấu: cả tiệc (đang bật voice) đều nghe, không phụ thuộc khoảng cách
+  async function stageMic() {
+    if (!voice.joined && !(await voiceJoin())) { setEmote('sing'); return; }
+    if (!voice.hasMic) { toast('Cần cho phép micro để hát karaoke 🎤'); return; }
+    voice.setStage(!voice.stage);
+    if (voice.stage) {
+      setEmote('sing', 0);
+      state.me.av.say('🎤 Xin tặng cô dâu chú rể một bài hát!', 4000);
+      toast('🎤 Bạn đang cầm mic sân khấu, mọi người bật voice đều nghe thấy. Rời sân khấu để trả mic.', 6000);
+    } else {
+      setEmote(null);
+      toast('Đã trả mic 🎤');
+    }
+  }
+  setInterval(() => {
+    // Rời khỏi sân khấu thì tự trả mic
+    if (voice.stage && state.me && !(state.me.pos.x > 22 && state.me.pos.x < 40 && state.me.pos.z > -14 && state.me.pos.z < -2.6)) {
+      voice.setStage(false);
+      toast('Đã trả mic sân khấu 🎤');
+    }
+  }, 1000);
+  voiceUi();
+
   // ---------- Thả cảm xúc ----------
   const REACTIONS = ['😂', '😍', '👏', '🎉', '🥹', '🔥', '😮', '🙏'];
   for (const e of REACTIONS) {
@@ -2340,6 +2432,7 @@ async function init() {
 
     ambient.update(t, dt, focus);
     fx.update(dt);
+    voice.update(performance.now());
     updateOverlays(t);
     render();
     if (state.photo?.capture) capturePhoto();

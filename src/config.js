@@ -73,3 +73,15 @@ export const MENU = [
   { group: 'Tráng miệng', items: ['Chè hạt sen long nhãn', 'Trái cây theo mùa'] },
   { group: 'Đồ uống', items: ['Bia, rượu vang, nước ngọt', 'Trà nóng'] },
 ];
+
+// ====== Voice chat & karaoke ======
+// Kết nối trực tiếp giữa các máy (WebRTC). STUN giúp các máy tìm thấy nhau qua Internet.
+// Một số mạng 4G/công ty chặn kết nối trực tiếp → cần thêm máy chủ TURN, ví dụ:
+//   { urls: 'turn:your-turn-server:3478', username: '...', credential: '...' }
+export const VOICE = {
+  range: 15, // mét: đứng trong khoảng này mới nghe nhau, càng xa càng nhỏ
+  maxPeers: 8, // tối đa số người nói chuyện cùng lúc với một máy
+  iceServers: [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+  ],
+};

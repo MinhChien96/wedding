@@ -22,6 +22,7 @@ Web 3D cho khách mời tham dự đám cưới online: mỗi người tạo nh�
 - **Săn trái tim vàng**: 10 trái tim vàng trốn quanh tiệc, tìm đủ để nhận danh hiệu "Thám tử tình yêu".
 - **Chương trình MC**: cứ 2 phút có một tiết mục chung cho mọi người (trao nụ hôn, nâng ly, pháo hoa, điệu nhảy đầu tiên, tung hoa cưới, thả đèn trời), đồng bộ theo giờ thực.
 - **Cô dâu chú rể** đứng ở lễ đài và chào khi bạn lại gần. Có thêm khách ảo đi lại cho đông vui.
+- **Voice chat & karaoke** (nút 🎧): nói chuyện theo khoảng cách (đứng gần ai nghe người đó, xa dần nhỏ dần), biểu tượng 🎙️ hiện trên đầu người đang nói. Lên sân khấu chọn "🎤 Cầm mic hát" để cả tiệc nghe, nhạc nền tự giảm nhỏ. Dùng WebRTC kết nối trực tiếp, Firebase làm signaling (`voice/`, `rtc/`). Cấu hình trong `VOICE` (`src/config.js`), có thể thêm máy chủ TURN cho mạng 4G khó kết nối.
 - **Màn hình LED phát video YouTube**: video trong `WEDDING.music.youtube` phát lặp liên tục trên màn hình sân khấu và làm nhạc nền cho cả web (nút 🎵 bật/tắt tiếng). Người đứng trên sân khấu che video đúng như thật. Nếu video bị chặn nhúng, web tự dùng nhạc dự phòng.
 - **Phong cách cưới Việt**: băng rôn "Tân Hôn" chữ Hỷ trên cổng hoa, bảng Hỷ "Lễ Thành Hôn" sau cô dâu chú rể, mâm cỗ trên từng bàn (gà luộc, xôi gấc, nem rán, tôm hấp, rau xào, canh).
 - **Ngồi bàn tiệc**: xem thực đơn (sửa trong `MENU`), gắp món, "1-2-3 Dô cả bàn!" – khách ở cùng bàn (người thật lẫn khách ảo) nâng ly theo.
