@@ -1787,8 +1787,9 @@ async function init() {
   vBtn.addEventListener('click', () => {
     closeMenu();
     if (!voice.joined || !voice.hasMic) { openMicModal(); return; }
+    // Không hiện thông báo: biểu tượng nút (🎙️ / 🔇) đã cho biết trạng thái
     voice.setMic(!voice.micOn);
-    toast(voice.micOn ? '🎙️ Đã bật mic' : '🔇 Đã tắt mic', 1800);
+    music.sfx('tick', 0.4);
   });
   $('#hVoiceLeave').addEventListener('click', () => { voice.leave(); toast('Đã thoát voice chat'); });
   addEventListener('pointerdown', () => voice.unlockAudio(), { passive: true });
