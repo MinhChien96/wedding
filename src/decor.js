@@ -646,11 +646,134 @@ export function buildDecor(scene, venue, sparkTex) {
     h.mesh.visible = !taken;
   };
 
+  // ========== PHOTOBOOTH (góc check-in) ==========
+  // Máy ảnh trên chân máy nhìn thẳng vào backdrop, 2 đèn softbox nháy flash khi chụp, bảng hiệu và bàn đạo cụ.
+  const photobooth = { cam: V3(-31, 1.72, 32.0), look: V3(-31, 1.5, 40), spots: [V3(-32.3, 0, 37.6), V3(-29.7, 0, 37.6)] };
+  {
+    const black = mat('#222226', { roughness: 0.45, metalness: 0.3 });
+    const chrome = mat('#c9c9cf', { metalness: 0.8, roughness: 0.25 });
+    // Chân máy + máy ảnh
+    const tri = group(-31, 0, 31.6);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
+      const leg = put(new THREE.CylinderGeometry(0.02, 0.025, 1.6, 6), black, Math.sin(a) * 0.28, 0.76, Math.cos(a) * 0.28, tri);
+      leg.rotation.set(Math.cos(a) * 0.36, 0, -Math.sin(a) * 0.36);
+    }
+    put(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 8), chrome, 0, 1.5, 0, tri);
+    put(new THREE.BoxGeometry(0.34, 0.22, 0.16), black, 0, 1.68, 0, tri);
+    put(new THREE.BoxGeometry(0.1, 0.06, 0.08), black, -0.08, 1.82, -0.01, tri);
+    const lens = put(new THREE.CylinderGeometry(0.075, 0.085, 0.2, 20), black, 0, 1.68, 0.17, tri);
+    lens.rotation.x = Math.PI / 2;
+    const glass = put(new THREE.CircleGeometry(0.06, 20), new THREE.MeshStandardMaterial({ color: '#1b2a4a', metalness: 0.9, roughness: 0.05 }), 0, 1.68, 0.272, tri);
+    glass.castShadow = false;
+    const tally = put(new THREE.SphereGeometry(0.018, 8, 6), glow('#ff3355', 1), 0.13, 1.76, 0.08, tri);
+    venue.addCircle(-31, 31.6, 0.4);
+
+    // Đèn softbox hai bên
+    const lights = [];
+    for (const x of [-35.4, -26.6]) {
+      const g = group(x, 0, 34.3, Math.atan2(-31 - x, 38.5 - 34.3));
+      put(new THREE.CylinderGeometry(0.025, 0.025, 2.3, 6), black, 0, 1.15, 0, g);
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        const leg = put(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 5), black, Math.sin(a) * 0.2, 0.22, Math.cos(a) * 0.2, g);
+        leg.rotation.set(Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7);
+      }
+      const head = group(0, 2.25, 0, 0, g);
+      head.rotation.x = 0.18;
+      put(new THREE.BoxGeometry(0.85, 0.85, 0.32), black, 0, 0, -0.06, head);
+      const face = new THREE.MeshBasicMaterial({ color: '#fff6ea' });
+      const panel = put(new THREE.PlaneGeometry(0.78, 0.78), face, 0, 0, 0.105, head);
+      panel.castShadow = false;
+      const light = new THREE.PointLight('#fff4e6', 0, 14, 1.5);
+      light.position.set(0, 0, 0.5);
+      head.add(light);
+      lights.push({ light, face });
+      venue.addCircle(x, 34.3, 0.35);
+    }
+
+    // Bảng hiệu Photobooth
+    const signTex = canvasTexture(512, 360, (ctx, w, h) => {
+      ctx.fillStyle = '#fff8f1';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#ffb3c6';
+      ctx.lineWidth = 14;
+      ctx.strokeRect(14, 14, w - 28, h - 28);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#c75b7a';
+      ctx.font = `110px ${SCRIPT}`;
+      ctx.fillText('Photobooth', w / 2, 140);
+      ctx.fillStyle = '#6d597a';
+      ctx.font = `600 34px ${FONT}`;
+      ctx.fillText('Chụp 4 kiểu · in khung ảnh', w / 2, 210);
+      ctx.font = `500 28px ${FONT}`;
+      ctx.fillText('Gọi bạn bè vào chụp chung nhé!', w / 2, 262);
+      drawHeart(ctx, 70, 300, 40, '#ff8fab');
+      drawHeart(ctx, w - 70, 300, 40, '#ff8fab');
+    });
+    const sg = group(-37.2, 0, 31.4, -0.35);
+    const easel = mat('#c8a27a', { roughness: 0.8 });
+    for (const sx of [-0.45, 0.45]) {
+      const l = put(new THREE.BoxGeometry(0.05, 1.9, 0.05), easel, sx, 0.95, 0.1, sg);
+      l.rotation.x = -0.12;
+    }
+    const back = put(new THREE.BoxGeometry(0.05, 1.7, 0.05), easel, 0, 0.85, -0.3, sg);
+    back.rotation.x = 0.25;
+    const board = put(new THREE.PlaneGeometry(1.2, 0.85), new THREE.MeshStandardMaterial({ map: signTex, side: THREE.DoubleSide }), 0, 1.45, 0.02, sg);
+    board.rotation.y = Math.PI;
+    board.rotation.x = 0.12;
+    venue.addCircle(-37.2, 31.4, 0.5);
+
+    // Bàn đạo cụ: que tim, môi, biển "Just Married", kính
+    const tg = group(-37.4, 0, 35.4, Math.PI / 2);
+    const wood = mat('#f3e6d8', { roughness: 0.7 });
+    put(new THREE.BoxGeometry(1.4, 0.06, 0.6), wood, 0, 0.78, 0, tg);
+    for (const [x, z] of [[-0.62, -0.24], [0.62, -0.24], [-0.62, 0.24], [0.62, 0.24]]) put(new THREE.CylinderGeometry(0.03, 0.03, 0.76, 6), wood, x, 0.38, z, tg);
+    const propTex = (draw) => canvasTexture(128, 128, draw);
+    const props = [
+      propTex((ctx) => drawHeart(ctx, 64, 68, 110, '#ff4d7a')),
+      propTex((ctx) => { ctx.fillStyle = '#e63946'; ctx.beginPath(); ctx.ellipse(64, 64, 54, 26, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#8d1b2a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(14, 64); ctx.quadraticCurveTo(64, 78, 114, 64); ctx.stroke(); }),
+      propTex((ctx) => { ctx.fillStyle = '#fff'; ctx.fillRect(4, 34, 120, 60); ctx.fillStyle = '#c75b7a'; ctx.font = `34px ${SCRIPT}`; ctx.textAlign = 'center'; ctx.fillText('Just', 64, 60); ctx.fillText('Married', 64, 88); }),
+      propTex((ctx) => { ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(36, 64, 26, 0, Math.PI * 2); ctx.arc(92, 64, 26, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(56, 56, 16, 6); }),
+    ];
+    props.forEach((tex, i) => {
+      const x = -0.5 + i * 0.33;
+      put(new THREE.CylinderGeometry(0.008, 0.008, 0.45, 5), mat('#d4a373'), x, 1.02, 0.05, tg);
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshStandardMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.1 }));
+      p.position.set(x, 1.32, 0.05);
+      p.rotation.y = Math.PI;
+      tg.add(p);
+    });
+    venue.addBox(-37.75, -37.05, 34.65, 36.15);
+
+    // Dấu "đứng đây" trên sàn
+    const markTex = canvasTexture(128, 128, (ctx) => drawHeart(ctx, 64, 70, 100, 'rgba(255,111,145,0.85)'));
+    for (const sp of photobooth.spots) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshBasicMaterial({ map: markTex, transparent: true, depthWrite: false }));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(sp.x, 0.03, sp.z);
+      scene.add(m);
+    }
+
+    let flashT = 0;
+    let busy = 0;
+    photobooth.flash = () => { flashT = 1; };
+    photobooth.setBusy = (on) => { busy = on ? 1 : 0; };
+    updaters.push((t, dt) => {
+      flashT = Math.max(0, flashT - dt * 5);
+      for (const L of lights) {
+        L.light.intensity = flashT * 9;
+        L.face.color.setRGB(1 + flashT * 2.5, 0.96 + flashT * 2.5, 0.92 + flashT * 2.5);
+      }
+      tally.visible = !busy || Math.sin(t * 12) > 0;
+    });
+  }
+
   // ========== CHÚ CÚN CORGI ==========
   const dog = new Dog(scene, venue, mat);
 
   return {
-    fountain, car, bell, swing, lockWall, champagne, cart, piano, pond, hearts, setHeartTaken, dog,
+    fountain, car, bell, swing, lockWall, champagne, cart, piano, pond, hearts, setHeartTaken, dog, photobooth,
     update(t, dt, player) {
       for (const u of updaters) u(t, dt);
       dog.update(t, dt, player);

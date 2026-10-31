@@ -22,6 +22,7 @@ const lerpAngle = (a, b, t) => a + (((b - a + Math.PI * 3) % (Math.PI * 2)) - Ma
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const rand = (a, b) => a + Math.random() * (b - a);
+const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const isTouch = matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch', isTouch);
 // localStorage có thể bị chặn (VD: trang nhúng trong iframe sandbox) → không để lỗi làm hỏng trang
@@ -90,7 +91,12 @@ async function init() {
   venue.addCircle(-0.85, -8.4, 0.35);
   venue.addCircle(0.85, -8.4, 0.35);
   scene.add(groom.root, bride.root);
-  avatars.add(groom).add(bride);
+  // Thợ ảnh đứng sau máy ảnh ở photobooth (góc check-in)
+  const photog = new Avatar({ outfit: 'suit', color: '#3a3a44', skin: 2, hair: '#111111' }, '📷 Thợ ảnh', 'Photobooth');
+  photog.root.position.set(-31.25, 0, 30.85);
+  scene.add(photog.root);
+  const photogState = { anim: 'idle', next: 0, said: 0 };
+  avatars.add(groom).add(bride).add(photog);
   const couple = {
     greetCd: 0, act: 0, groomAnim: 'idle', brideAnim: 'idle', kiss: 0, kissFx: 0, bouquetAt: 0,
     over: new Map(), // avatar -> { anim, until, yaw }
@@ -423,7 +429,7 @@ async function init() {
     if (!id || !me) return;
     if (id === 'toast' && !dur) { me.av.say('Zô! 🥂', 3000); music.sfx('clink', 0.6); }
     if (!dur && EMOTE_LINES[id]) bots.react(me.pos, id, 7, 0.5, EMOTE_LINES[id]);
-    fx.ring(me.pos, '#ffd6e8', 0.5, 1.5);
+    if (!state.photo) fx.ring(me.pos, '#ffd6e8', 0.5, 1.5);
   }
 
   // ---------- HUD: hành động nhanh (đồng bộ cho mọi người) ----------
@@ -544,7 +550,8 @@ async function init() {
     { x: 0, z: -6.4, r: 3.3, actions: [{ label: '💐 Xin hoa cưới', run: () => bouquetToss() }, { label: '💋 Hô "Hôn đi!"', run: () => coupleKiss() }] },
     { x: venue.cake.x, z: venue.cake.z, r: 2.4, actions: [{ label: '🍰 Ăn bánh cưới', run: eatCake }] },
     { x: 38.4, z: 30, r: 2.3, actions: [{ label: '🍹 Gọi cocktail', run: orderDrink }] },
-    { x: -31, z: 38, r: 3.6, actions: [{ label: '📸 Chụp ảnh check-in', run: () => takePhoto('backdrop') }] },
+    { x: -31, z: 37, r: 4.2, actions: [{ label: '🎞️ Photobooth 4 kiểu', run: () => takePhoto('booth') }, { label: '📸 Chụp 1 tấm check-in', run: () => takePhoto('backdrop') }] },
+    { x: -31.25, z: 30.6, r: 2.0, actions: [{ label: '📷 Nhờ thợ ảnh chụp photobooth', run: () => takePhoto('booth') }] },
     { x: venue.heartFrame.pos.x, z: venue.heartFrame.pos.z, r: 2.2, actions: [{ label: '💞 Chụp trong khung tim', run: () => takePhoto('heart') }] },
     ...venue.balloonSpots.map((p) => ({ x: p.x, z: p.z, r: 1.9, actions: [{ label: '🎈 Thả bóng bay', run: () => doAction(ACTIONS[3]) }] })),
     { x: 6, z: 34.6, r: 1.9, actions: [{ label: '🧧 Bỏ phong bì mừng cưới', run: () => openModal('#giftModal') }] },
@@ -875,6 +882,7 @@ async function init() {
   const socialEl = $('#socialMenu');
   const peerIdOf = (av) => { for (const [id, p] of state.peers) if (p.av === av) return id; return null; };
   function openSocial(av, x, y) {
+    if (av === photog) { takePhoto('booth'); return; }
     state.social = av;
     const d = state.me ? state.me.pos.distanceTo(av.root.position) : 0;
     const [nm, sub] = [av.name || 'Khách', av === bride ? 'Cô dâu' : av === groom ? 'Chú rể' : peerIdOf(av) ? 'Khách online' : 'Khách mời'];
@@ -947,57 +955,109 @@ async function init() {
 
   // ---------- Chụp ảnh ----------
   const countdownEl = $('#countdown');
+  const PHOTO_W = 1600;
+  const PHOTO_H = 1200;
+  const PHOTO_A = PHOTO_W / PHOTO_H;
+  const BASE_FOV = 55;
+  const viewfinder = $('#viewfinder');
+  const BOOTH_CENTER = V3(-31, 0, 37.5);
+  // Khung ngắm 4:3 trên màn hình + chỉnh FOV để màn hình hiển thị đúng phần sẽ được chụp
+  function applyPhotoView() {
+    const ph = state.photo;
+    if (!ph) return;
+    const sa = innerWidth / innerHeight;
+    let fw;
+    let fh;
+    if (sa < PHOTO_A) { fw = innerWidth * 0.96; fh = fw / PHOTO_A; } else { fh = innerHeight * 0.88; fw = fh * PHOTO_A; }
+    const half = THREE.MathUtils.degToRad(ph.fov) / 2;
+    camera.fov = Math.min(150, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(half) * (innerHeight / fh))));
+    camera.updateProjectionMatrix();
+    viewfinder.style.width = `${fw}px`;
+    viewfinder.style.height = `${fh}px`;
+  }
+  function boothFriends(act, at) {
+    // Khách ảo đứng gần backdrop cũng tạo dáng theo
+    for (const b of bots.list) if (b.av.root.position.distanceTo(BOOTH_CENTER) < 7) bots.respond(b.av, act, at);
+  }
   function takePhoto(kind, withAv = null) {
     const me = state.me;
     if (!me || state.photo) return;
     if (me.sit && kind !== 'selfie') standUp();
     state.walkTo = null;
+    state.follow = null;
     closeSocial();
     state.lastPhoto = kind;
     let camP;
     let look;
     let pose = 'selfie';
-    if (kind === 'backdrop') {
-      me.pos.x = Math.min(-27.5, Math.max(-34.5, me.pos.x));
-      me.pos.z = Math.min(38.8, Math.max(36.5, me.pos.z));
+    let fov = 58;
+    let shots = 1;
+    let poses = null;
+    const booth = kind === 'booth' || kind === 'backdrop';
+    if (booth) {
+      // Đứng trước backdrop, máy ảnh trên chân máy chụp góc rộng lấy cả backdrop và bạn bè xung quanh
+      const pb = decor.photobooth;
+      me.pos.x = Math.min(-28.6, Math.max(-33.4, me.pos.x));
+      me.pos.z = Math.min(38.6, Math.max(36.8, me.pos.z));
+      if (me.pos.distanceTo(BOOTH_CENTER) > 4) me.pos.copy(pick(pb.spots));
       me.yaw = Math.PI;
-      camP = V3(me.pos.x, 1.8, me.pos.z - 5.4);
-      look = V3(me.pos.x, 1.55, me.pos.z + 2);
-      pose = pick(['heart', 'kiss', 'cheer', 'wave']);
+      camP = pb.cam.clone();
+      look = pb.look.clone();
+      fov = 47;
+      if (kind === 'booth') {
+        shots = 4;
+        poses = shuffle(['heart', 'cheer', 'kiss', 'wave', 'clap']).slice(0, 4);
+        pose = poses[0];
+        photog.say('Mọi người vào khung hình nào! Chụp 4 kiểu nha 📸', 4000);
+        net.send({ t: 'fx', k: 'booth', p: arr3(me.pos) });
+      } else {
+        pose = pick(['heart', 'kiss', 'cheer', 'wave']);
+        photog.say('Cười tươi lên nào! 📸', 3000);
+      }
+      pb.setBusy(true);
+      boothFriends(pose === 'kiss' ? 'heart' : pose === 'clap' ? 'wave' : pose, camP);
     } else if (kind === 'heart') {
       const { pos: hp, ry } = venue.heartFrame;
       const n = V3(Math.sin(ry), 0, Math.cos(ry));
       me.pos.set(hp.x + n.x * 1.1, 0, hp.z + n.z * 1.1);
       me.yaw = Math.atan2(-n.x, -n.z);
-      camP = V3(hp.x - n.x * 6, 1.7, hp.z - n.z * 6);
-      look = V3(hp.x, 1.55, hp.z);
+      camP = V3(hp.x - n.x * 6.5, 1.7, hp.z - n.z * 6.5);
+      look = V3(hp.x, 1.6, hp.z);
       pose = pick(['heart', 'kiss']);
+      fov = 50;
     } else if (kind === 'car') {
       const c = decor.car.pos;
       me.pos.set(c.x + rand(-0.6, 0.6), 0, c.z + 1.9);
       me.yaw = 0;
-      camP = V3(c.x - 1, 1.8, c.z + 7.6);
-      look = V3(c.x, 0.95, c.z + 0.6);
+      camP = V3(c.x - 1, 1.9, c.z + 8.4);
+      look = V3(c.x, 1.0, c.z + 0.6);
       pose = pick(['heart', 'cheer', 'kiss', 'wave']);
+      fov = 52;
     } else if (withAv) {
       const tp = withAv.root.position;
       const mid = me.pos.clone().lerp(tp, 0.5);
       const side = V3(-(tp.z - me.pos.z), 0, tp.x - me.pos.x).normalize();
       if (side.dot(camera.position.clone().sub(mid)) < 0) side.negate();
-      camP = mid.clone().addScaledVector(side, 3.4).add(V3(0, 1.9, 0));
+      camP = mid.clone().addScaledVector(side, 3.6).add(V3(0, 1.9, 0));
       look = mid.clone().add(V3(0, 1.3, 0));
       me.yaw = Math.atan2(camP.x - me.pos.x, camP.z - me.pos.z);
       pose = 'heart';
+      fov = 56;
       if (withAv === bride || withAv === groom) couple.over.set(withAv, { anim: 'heart', until: performance.now() + 4500, yaw: Math.atan2(camP.x - tp.x, camP.z - tp.z) });
       else bots.respond(withAv, 'heart', camP);
     } else {
+      // Selfie: góc rộng như camera trước của điện thoại
       const f = forward(1);
       const r = V3(f.z, 0, -f.x);
-      camP = me.pos.clone().addScaledVector(f, 2.3).addScaledVector(r, -0.4).add(V3(0, 2.1, 0));
-      look = me.pos.clone().add(V3(0, 1.45, 0));
+      camP = me.pos.clone().addScaledVector(f, 2.6).addScaledVector(r, -0.4).add(V3(0, 2.15, 0));
+      look = me.pos.clone().add(V3(0, 1.4, 0));
+      fov = 64;
     }
-    state.photo = { camP, look, t: 3, last: 4, pose };
+    state.photo = { kind, camP, look, t: 3, last: 4, pose, poses, fov, shots, images: [] };
     document.body.classList.add('photo-mode');
+    viewfinder.classList.remove('hidden');
+    $('#vfShot').textContent = shots > 1 ? `Kiểu 1/${shots}` : '';
+    applyPhotoView();
     setEmote(pose);
   }
   function endPhoto() {
@@ -1005,48 +1065,117 @@ async function init() {
     state.photo = null;
     document.body.classList.remove('photo-mode');
     countdownEl.classList.add('hidden');
+    viewfinder.classList.add('hidden');
+    decor.photobooth.setBusy(false);
+    camera.fov = BASE_FOV;
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
   }
+  // Render riêng một khung 4:3 độ phân giải cao, không phụ thuộc màn hình dọc hay ngang
+  function renderPhotoImage(fov) {
+    const pr = renderer.getPixelRatio();
+    const sw = innerWidth;
+    const sh = innerHeight;
+    renderer.setPixelRatio(1);
+    renderer.setSize(PHOTO_W, PHOTO_H, false);
+    composer.setPixelRatio(1);
+    composer.setSize(PHOTO_W, PHOTO_H);
+    camera.aspect = PHOTO_A;
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+    render();
+    const url = canvas.toDataURL('image/jpeg', 0.9);
+    renderer.setPixelRatio(pr);
+    renderer.setSize(sw, sh, false);
+    composer.setPixelRatio(pr);
+    composer.setSize(sw, sh);
+    camera.aspect = sw / sh;
+    camera.updateProjectionMatrix();
+    applyPhotoView();
+    return url;
+  }
+  const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = src; });
   function capturePhoto() {
-    const url = canvas.toDataURL('image/jpeg', 0.92);
-    endPhoto();
-    setEmote(null);
+    const ph = state.photo;
+    const url = renderPhotoImage(ph.fov);
+    ph.capture = false;
     const fl = $('#flash');
     fl.classList.remove('on');
     void fl.offsetWidth;
     fl.classList.add('on');
     music.sfx('shutter');
-    const img = new Image();
-    img.onload = () => {
-      const W = 960;
-      const H = 720;
-      const pad = 36;
-      const c = document.createElement('canvas');
+    ph.images.push(url);
+    if (ph.images.length < ph.shots) {
+      // Kiểu tiếp theo
+      const k = ph.images.length;
+      ph.pose = ph.poses[k];
+      ph.t = 2.4;
+      ph.last = 3;
+      ph.flashed = false;
+      setEmote(ph.pose);
+      boothFriends(ph.pose === 'kiss' ? 'heart' : ph.pose === 'clap' ? 'wave' : ph.pose, ph.camP);
+      $('#vfShot').textContent = `Kiểu ${k + 1}/${ph.shots}`;
+      photog.say(pick(['Đổi dáng nào! ✨', 'Đẹp lắm! Thêm kiểu nữa 😍', 'Tuyệt! Kiểu tiếp theo nha 💃', 'Cười tươi hơn chút nữa! 😄']), 2200);
+      return;
+    }
+    const images = ph.images;
+    const isBooth = ph.kind === 'booth' || ph.kind === 'backdrop';
+    endPhoto();
+    setEmote(null);
+    if (isBooth) photog.say(pick(['Xong rồi! Ảnh đẹp xuất sắc 👏', 'Lên hình đẹp quá trời 😍', 'Ảnh đây nha, nhớ tải về! 📸']), 3500);
+    composePhoto(images);
+  }
+  async function composePhoto(urls) {
+    const imgs = await Promise.all(urls.map(loadImg));
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    const footer = 170;
+    if (imgs.length === 1) {
+      // Ảnh đơn: khung polaroid
+      const W = 1280;
+      const H = 960;
+      const pad = 44;
       c.width = W + pad * 2;
-      c.height = H + pad + 150;
-      const ctx = c.getContext('2d');
+      c.height = H + pad + footer;
       ctx.fillStyle = '#fffdf9';
       ctx.fillRect(0, 0, c.width, c.height);
-      const ar = W / H;
-      let sw = img.width;
-      let sh = img.height;
-      if (sw / sh > ar) sw = sh * ar; else sh = sw / ar;
-      ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, pad, pad, W, H);
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#c75b7a';
-      ctx.font = `64px ${SCRIPT}`;
-      ctx.fillText(`${WEDDING.groom} & ${WEDDING.bride}`, c.width / 2, H + pad + 72);
-      ctx.fillStyle = '#8a7690';
-      ctx.font = `600 22px ${FONT}`;
-      ctx.fillText(`${WEDDING.date} · ${WEDDING.hashtag} · 📸 ${prof.name}`, c.width / 2, H + pad + 116);
-      drawHeart(ctx, pad + 40, H + pad + 70, 36, '#ff8fab');
-      drawHeart(ctx, c.width - pad - 40, H + pad + 70, 36, '#ff8fab');
-      const out = c.toDataURL('image/jpeg', 0.92);
-      $('#photoImg').src = out;
-      $('#photoDl').href = out;
-      $('#photoDl').download = `${WEDDING.hashtag.replace(/\W/g, '') || 'wedding'}-${Date.now()}.jpg`;
-      openModal('#photoModal');
-    };
-    img.src = url;
+      ctx.drawImage(imgs[0], pad, pad, W, H);
+    } else {
+      // Photobooth: lưới 2x2
+      const w = 760;
+      const h = 570;
+      const pad = 36;
+      const gap = 20;
+      c.width = pad * 2 + w * 2 + gap;
+      c.height = pad + h * 2 + gap + footer;
+      const g = ctx.createLinearGradient(0, 0, c.width, c.height);
+      g.addColorStop(0, '#fff1f5');
+      g.addColorStop(1, '#f4ecff');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, c.width, c.height);
+      imgs.forEach((img, i) => {
+        const x = pad + (i % 2) * (w + gap);
+        const y = pad + Math.floor(i / 2) * (h + gap);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+        ctx.drawImage(img, x, y, w, h);
+      });
+    }
+    const fy = c.height - footer;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#c75b7a';
+    ctx.font = `72px ${SCRIPT}`;
+    ctx.fillText(`${WEDDING.groom} & ${WEDDING.bride}`, c.width / 2, fy + 82);
+    ctx.fillStyle = '#8a7690';
+    ctx.font = `600 24px ${FONT}`;
+    ctx.fillText(`${WEDDING.date} · ${WEDDING.hashtag} · 📸 ${prof.name}`, c.width / 2, fy + 128);
+    drawHeart(ctx, 90, fy + 76, 40, '#ff8fab');
+    drawHeart(ctx, c.width - 90, fy + 76, 40, '#ff8fab');
+    const out = c.toDataURL('image/jpeg', 0.9);
+    $('#photoImg').src = out;
+    $('#photoDl').href = out;
+    $('#photoDl').download = `${WEDDING.hashtag.replace(/\W/g, '') || 'wedding'}-${Date.now()}.jpg`;
+    openModal('#photoModal');
   }
   $('#photoAgain').addEventListener('click', () => { $('#photoModal').classList.add('hidden'); takePhoto(state.lastPhoto); });
 
@@ -1243,6 +1372,13 @@ async function init() {
       case 'champagne': pourChampagne(true); break;
       case 'lock': addLove(true, m.c); break;
       case 'swan': feedSwans(true, p); break;
+      case 'booth': {
+        if (!peer) return;
+        decor.photobooth.setBusy(true);
+        setTimeout(() => { if (!state.photo) decor.photobooth.setBusy(false); }, 12000);
+        if (state.zone?.id === 'photo') toast(`📸 <b>${esc(peer.name)}</b> đang chụp photobooth · chạy vào khung hình chụp chung nào!`, 5000);
+        break;
+      }
       case 'social': {
         if (!peer) return;
         const toMe = m.to === net.id;
@@ -1278,7 +1414,6 @@ async function init() {
   });
 
   // ---------- Đố vui ----------
-  const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const quizBody = $('#quizBody');
   const quiz = { qs: [], i: 0, score: 0, t0: 0 };
   const QUIZ_N = Math.min(6, QUIZ.length);
@@ -1741,6 +1876,10 @@ async function init() {
       countdownEl.innerHTML = `<span>${n}</span>`;
       music.sfx('tick');
     }
+    if ((ph.kind === 'booth' || ph.kind === 'backdrop') && ph.t < 0.12 && !ph.flashed) {
+      ph.flashed = true;
+      decor.photobooth.flash();
+    }
     if (ph.t <= 0) {
       countdownEl.classList.add('hidden');
       ph.capture = true;
@@ -1806,6 +1945,18 @@ async function init() {
     bride.root.rotation.y = lerpAngle(bride.root.rotation.y, byaw, 1 - Math.exp(-5 * dt));
     groom.update(dt, ga);
     bride.update(dt, ba);
+    // Thợ ảnh: cầm máy khi đang chụp, vẫy gọi khi có người lại gần
+    const shooting = state.photo && (state.photo.kind === 'booth' || state.photo.kind === 'backdrop');
+    if (!shooting && now > photogState.next) {
+      const near = state.me && state.me.pos.distanceTo(photog.root.position) < 6;
+      photogState.anim = near ? pick(['wave', 'idle', 'idle', 'clap']) : pick(['idle', 'idle', 'bow']);
+      photogState.next = now + 2500 + Math.random() * 3000;
+      if (near && now - photogState.said > 25000) {
+        photogState.said = now;
+        photog.say(pick(['Chụp photobooth không? Bấm vào tôi nhé! 📸', 'Rủ bạn bè vào chụp chung đi 😄', 'Đứng trước backdrop để chụp 4 kiểu nha!']), 4500);
+      }
+    }
+    photog.update(dt, shooting ? 'selfie' : photogState.anim);
   }
 
   // ---------- Overlay khu vực ----------
@@ -1916,6 +2067,7 @@ async function init() {
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
     composer.setSize(innerWidth, innerHeight);
+    applyPhotoView();
   });
 
   // Gỡ lỗi: mở trang với ?debug để truy cập trạng thái từ console

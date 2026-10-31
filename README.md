@@ -22,6 +22,8 @@ Web 3D cho khách mời tham dự đám cưới online: mỗi người tạo nh�
 - **Săn trái tim vàng**: 10 trái tim vàng trốn quanh tiệc, tìm đủ để nhận danh hiệu "Thám tử tình yêu".
 - **Chương trình MC**: cứ 2 phút có một tiết mục chung cho mọi người (trao nụ hôn, nâng ly, pháo hoa, điệu nhảy đầu tiên, tung hoa cưới, thả đèn trời), đồng bộ theo giờ thực.
 - **Cô dâu chú rể** đứng ở lễ đài và chào khi bạn lại gần. Có thêm khách ảo đi lại cho đông vui.
+- **Photobooth ở góc check-in**: thợ ảnh đứng sau máy ảnh trên chân máy, 2 đèn softbox nháy flash, bảng hiệu, bàn đạo cụ và dấu "đứng đây". Chụp 4 kiểu liên tiếp (mỗi kiểu một dáng), ghép thành ảnh lưới 2x2 có khung tên cô dâu chú rể. Khách ảo đứng gần tạo dáng theo, khách online trong khu được báo để chạy vào chụp chung. Bấm vào thợ ảnh hoặc lại gần backdrop để chụp.
+- **Ảnh chụp góc rộng**: mọi kiểu chụp được render riêng ở 1600×1200 (4:3), không bị cắt hẹp khi dùng điện thoại dọc; có khung ngắm để thấy trước phần sẽ lên ảnh.
 - **Thả cảm xúc**: 8 emoji (😂😍👏🎉🥹🔥😮🙏) bay lên trên đầu nhân vật, mọi người đều thấy. Trên điện thoại bấm 💬 để mở.
 - **Đi theo**: bấm vào khách khác → "🚶 Đi theo" để tự động đi cùng họ, di chuyển là dừng.
 - **Đố vui "Ai hiểu cô dâu chú rể nhất?"**: 6 câu ngẫu nhiên, tính điểm và thời gian. Thêm câu hỏi riêng của hai bạn vào `CUSTOM_QUIZ` trong `src/config.js`.
