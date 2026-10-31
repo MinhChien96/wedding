@@ -422,6 +422,24 @@ export class Effects {
     return g;
   }
 
+  // Phong bì đỏ mừng cưới / lì xì
+  makeEnvelope() {
+    this.envTex ||= canvasTexture(128, 80, (ctx, w, h) => {
+      ctx.fillStyle = '#d62828';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#b5161b';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w / 2, h * 0.55); ctx.lineTo(w, 0); ctx.fill();
+      ctx.fillStyle = '#ffd166';
+      ctx.font = 'bold 34px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('囍', w / 2, h * 0.86);
+    });
+    const front = new THREE.MeshStandardMaterial({ map: this.envTex, roughness: 0.5 });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.012), [front, front, front, front, front, front]);
+    m.userData.dispose = () => { m.geometry.dispose(); front.dispose(); };
+    return m;
+  }
+
   makeCoin() {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.015, 14), new THREE.MeshStandardMaterial({ color: '#ffcf4d', metalness: 0.9, roughness: 0.2, emissive: '#5a3a00' }));
     m.userData.dispose = () => { m.geometry.dispose(); m.material.dispose(); };

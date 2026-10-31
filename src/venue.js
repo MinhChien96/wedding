@@ -269,6 +269,34 @@ export function buildVenue(scene) {
 
   // ========== KHU ĐÓN KHÁCH ==========
   flowerArch(0, 40, 0, 2.6, 0.11, 80);
+  {
+    // Băng rôn đỏ trên cổng hoa: "Tân Hôn" + chữ Hỷ (hai mặt)
+    const tex = canvasTexture(1024, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#c1121f';
+      roundRect(ctx, 0, 0, w, h, 40);
+      ctx.fill();
+      ctx.strokeStyle = '#f6c453';
+      ctx.lineWidth = 10;
+      roundRect(ctx, 12, 12, w - 24, h - 24, 32);
+      ctx.stroke();
+      ctx.fillStyle = '#ffd166';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '700 150px "Noto Serif CJK SC","Songti SC","SimSun","PingFang SC","Microsoft YaHei",serif';
+      ctx.fillText('囍', 120, h / 2 + 6);
+      ctx.fillText('囍', w - 120, h / 2 + 6);
+      ctx.font = `800 92px ${FONT}`;
+      ctx.fillText('TÂN HÔN', w / 2, h / 2 - 22);
+      ctx.font = `600 40px ${FONT}`;
+      ctx.fillText(`${WEDDING.groom} ❤ ${WEDDING.bride} · ${WEDDING.date}`, w / 2, h / 2 + 62);
+    });
+    for (const ry of [0, Math.PI]) {
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.1), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }));
+      b.position.set(0, 3.55, 40 + (ry ? -0.03 : 0.03));
+      b.rotation.y = ry;
+      scene.add(b);
+    }
+  }
   flat(4, 14, 0, 33, '#efe3cc', 0.025);
   const lampMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd58a').multiplyScalar(2.4) });
   for (let z = 28; z <= 39; z += 2.75) {
@@ -329,6 +357,27 @@ export function buildVenue(scene) {
     for (let z = 28; z < 40; z += 1.2) flowerCluster(s * 13.4, 1.05, z, 2, 0.4, 0.12);
   }
 
+
+  // Chữ Hỷ đỏ – nét Việt Nam
+  const hyTex = (w, h, sub) => canvasTexture(w, h, (ctx) => {
+    ctx.fillStyle = '#c1121f';
+    roundRect(ctx, 0, 0, w, h, Math.min(w, h) * 0.12);
+    ctx.fill();
+    ctx.strokeStyle = '#f6c453';
+    ctx.lineWidth = Math.min(w, h) * 0.035;
+    roundRect(ctx, ctx.lineWidth, ctx.lineWidth, w - ctx.lineWidth * 2, h - ctx.lineWidth * 2, Math.min(w, h) * 0.1);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd166';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const big = sub ? h * 0.5 : h * 0.72;
+    ctx.font = `700 ${big}px "Noto Serif CJK SC","Songti SC","SimSun","PingFang SC","Microsoft YaHei",serif`;
+    ctx.fillText('囍', w / 2, sub ? h * 0.38 : h * 0.54);
+    if (sub) {
+      ctx.font = `700 ${h * 0.14}px ${FONT}`;
+      ctx.fillText(sub, w / 2, h * 0.8);
+    }
+  });
   // ========== LỄ ĐƯỜNG ==========
   put(new THREE.CylinderGeometry(3.5, 3.6, 0.25, 40), mat('#fbf7f0'), 0, 0.125, -8);
   flowerArch(0, -10, 0, 3.2, 0.14, 150);
@@ -338,6 +387,12 @@ export function buildVenue(scene) {
   );
   drape.position.set(0, 2.7, -10.35);
   scene.add(drape);
+  {
+    // Bảng chữ Hỷ phía sau cô dâu chú rể
+    const hy = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.8), new THREE.MeshStandardMaterial({ map: hyTex(400, 480, 'LỄ THÀNH HÔN'), roughness: 0.5 }));
+    hy.position.set(0, 3.15, -10.28);
+    scene.add(hy);
+  }
   for (const s of [-1, 1]) {
     put(new THREE.CylinderGeometry(0.35, 0.22, 0.9, 16), mat('#f2e9e1'), s * 4.6, 0.45, -9);
     flowerCluster(s * 4.6, 1.2, -9, 26, 0.45, 0.16);
@@ -404,6 +459,56 @@ export function buildVenue(scene) {
     tag.scale.set(1.1, 0.41, 1);
     tag.position.set(t.x, 1.95, t.z);
     scene.add(tag);
+  }
+  // Mâm cỗ Việt trên mỗi bàn: gà luộc, xôi gấc, nem rán, tôm hấp, rau xào, canh
+  {
+    const DISHES = [
+      { a: 0, food: 'ga' }, { a: 1, food: 'xoi' }, { a: 2, food: 'nem' }, { a: 3, food: 'tom' }, { a: 4, food: 'rau' }, { a: 5, food: 'canh' },
+    ];
+    const geos = {
+      plate: new THREE.CylinderGeometry(0.16, 0.12, 0.025, 20),
+      ga: new THREE.SphereGeometry(1, 12, 8).scale(0.12, 0.065, 0.085),
+      xoi: new THREE.SphereGeometry(0.1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      nem: new THREE.CylinderGeometry(0.022, 0.022, 0.16, 8).rotateZ(Math.PI / 2),
+      tom: new THREE.TorusGeometry(0.035, 0.016, 6, 10, Math.PI * 1.4).rotateX(Math.PI / 2),
+      rau: new THREE.IcosahedronGeometry(0.09, 0).scale(1, 0.4, 1),
+      bowl: new THREE.CylinderGeometry(0.11, 0.07, 0.07, 18, 1, true),
+      soup: new THREE.CircleGeometry(0.1, 18).rotateX(-Math.PI / 2),
+    };
+    const mats = {
+      plate: mat('#ffffff', { roughness: 0.3 }), ga: mat('#f2c14e', { roughness: 0.5 }), xoi: mat('#d62828', { roughness: 0.7 }),
+      nem: mat('#c97b3a', { roughness: 0.8 }), tom: mat('#ff7a45', { roughness: 0.5 }), rau: mat('#4caf50', { roughness: 0.8 }),
+      bowl: new THREE.MeshStandardMaterial({ color: '#f7f1e8', side: THREE.DoubleSide, roughness: 0.3 }), soup: mat('#e9b44c', { roughness: 0.2 }),
+    };
+    const items = Object.fromEntries(Object.keys(geos).map((k) => [k, []]));
+    const m4 = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const one = new THREE.Vector3(1, 1, 1);
+    const at = (k, x, y, z, ry = 0) => items[k].push(m4.clone().compose(new THREE.Vector3(x, y, z), q.clone().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry), one));
+    for (const t of tables) {
+      for (const d of DISHES) {
+        const ang = (d.a / 6) * Math.PI * 2 + 0.52 + 0.52;
+        const x = t.x + Math.sin(ang) * 0.6;
+        const z = t.z + Math.cos(ang) * 0.6;
+        const y = 0.79;
+        if (d.food === 'canh') {
+          at('bowl', x, y + 0.035, z);
+          at('soup', x, y + 0.055, z);
+          continue;
+        }
+        at('plate', x, y, z);
+        if (d.food === 'nem') for (const o of [-0.045, 0, 0.045]) at('nem', x + o * Math.cos(ang), y + 0.03, z - o * Math.sin(ang), ang);
+        else if (d.food === 'tom') for (const [ox, oz] of [[-0.05, 0], [0.05, 0.02], [0, -0.05], [0.01, 0.05]]) at('tom', x + ox, y + 0.025, z + oz, rand(0, 6));
+        else at(d.food, x, y + (d.food === 'ga' ? 0.05 : 0.02), z, ang);
+      }
+    }
+    for (const [k, list] of Object.entries(items)) {
+      const im = new THREE.InstancedMesh(geos[k], mats[k], list.length);
+      list.forEach((mm, i) => im.setMatrixAt(i, mm));
+      im.castShadow = false;
+      im.receiveShadow = true;
+      scene.add(im);
+    }
   }
   // Bánh cưới
   {

@@ -11,14 +11,19 @@ export const WEDDING = {
   // Nhạc nền: đặt file bài hát vào public/music/i-do.mp3 (bạn cần có bản quyền/quyền sử dụng file).
   // Nếu không có file, web tự phát nhạc nền tự sinh.
   music: {
+    // Video YouTube phát lặp liên tục trên màn hình LED sân khấu và làm nhạc nền cho cả web.
+    // Để trống nếu không dùng; khi video không phát được (bị chặn nhúng...) web tự dùng nhạc dự phòng bên dưới.
+    youtube: 'https://youtu.be/IOe0tNoUGv8',
     title: 'I Do – Đức Phúc',
     src: '/music/i-do.mp3',
   },
 
   // Thông tin nhận mừng cưới (hiện trong hộp "Mừng cưới").
   // Để trống account nếu không muốn hiển thị.
+  // bankId: mã ngân hàng cho mã VietQR (ví dụ 'VCB', 'TCB', 'MB', 'ACB', 'VPB'...) – có thì hiện mã QR chuyển khoản kèm số tiền.
   gift: {
     bank: '',
+    bankId: '',
     account: '',
     owner: '',
   },
@@ -58,4 +63,13 @@ export const LUCKY_PRIZES = [
   { text: '💐 Ưu tiên đứng hàng đầu khi tung hoa cưới', w: 10 },
   { text: '🌟 GIẢI ĐẶC BIỆT: Khách mời danh dự của đám cưới', w: 3, big: true },
   { text: '💍 GIẢI ĐẶC BIỆT: Người tiếp theo lên xe hoa', w: 3, big: true },
+];
+
+// ====== Thực đơn tiệc cưới (xem khi ngồi vào bàn) ======
+export const MENU = [
+  { group: 'Khai vị', items: ['Súp cua gà ngô non', 'Gỏi ngó sen tôm thịt', 'Nem rán Hà Nội'] },
+  { group: 'Món chính', items: ['Gà ta luộc lá chanh', 'Tôm sú hấp nước dừa', 'Bò xào rau cải', 'Cá song hấp xì dầu', 'Xôi gấc đỏ may mắn'] },
+  { group: 'Lẩu', items: ['Lẩu hải sản chua cay', 'Rau và bún ăn kèm'] },
+  { group: 'Tráng miệng', items: ['Chè hạt sen long nhãn', 'Trái cây theo mùa'] },
+  { group: 'Đồ uống', items: ['Bia, rượu vang, nước ngọt', 'Trà nóng'] },
 ];

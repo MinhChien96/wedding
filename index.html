@@ -117,6 +117,7 @@
         <button id="hQuiz">🧠 Đố vui</button>
         <button id="hLucky">🎁 Bốc thăm</button>
         <button id="hBoard">🏆 Bảng vàng</button>
+        <button id="hInvite">📤 Mời bạn bè</button>
         <button id="hZone">🧭 Đổi khu</button>
         <button id="hView">🎥 Góc nhìn</button>
         <button id="hBubble">💬 Ẩn chat</button>
@@ -140,6 +141,42 @@
           <button class="primary">Gửi lời chúc</button>
         </div>
       </form>
+    </div>
+
+    <!-- ===== Trao phong bì cho cô dâu chú rể ===== -->
+    <div id="envModal" class="modal hidden">
+      <form class="card" id="envForm">
+        <h2>🧧 Trao phong bì mừng cưới</h2>
+        <p class="muted">Gửi tận tay cô dâu chú rể kèm lời chúc. Lời chúc sẽ được lưu vào sổ lưu bút.</p>
+        <div class="amounts" id="envAmounts"></div>
+        <input id="envOther" type="text" inputmode="numeric" placeholder="Số khác (nghìn đồng), ví dụ 800" maxlength="7" />
+        <textarea id="envText" maxlength="300" rows="3" placeholder="Chúc hai bạn trăm năm hạnh phúc, sớm sinh quý tử..."></textarea>
+        <div class="row end">
+          <button type="button" class="ghost" data-close>Đóng</button>
+          <button class="primary">🧧 Trao phong bì</button>
+        </div>
+      </form>
+    </div>
+    <div id="qrModal" class="modal hidden">
+      <div class="card qr-card">
+        <h2>💳 Chuyển khoản mừng cưới</h2>
+        <p class="muted" id="qrNote"></p>
+        <img id="qrImg" alt="Mã QR chuyển khoản" />
+        <div id="qrBank" class="bank"></div>
+        <div class="row end"><button class="primary" data-close>Xong</button></div>
+      </div>
+    </div>
+
+    <!-- ===== Thực đơn tiệc ===== -->
+    <div id="menuModal" class="modal hidden">
+      <div class="card menu-card">
+        <div class="menu-head"><span class="hy">囍</span><h2>Thực đơn tiệc cưới</h2><p id="menuSub" class="muted"></p></div>
+        <div id="menuList"></div>
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
+          <button class="primary" id="menuEat">🥢 Mời cả bàn ăn</button>
+        </div>
+      </div>
     </div>
 
     <div id="bookModal" class="modal hidden">

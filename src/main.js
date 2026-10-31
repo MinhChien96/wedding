@@ -5,10 +5,11 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { WEDDING, QUIZ, LUCKY_PRIZES } from './config.js';
+import { WEDDING, QUIZ, LUCKY_PRIZES, MENU } from './config.js';
 import { buildVenue, ZONES, zoneAt, zoneById } from './venue.js';
 import { Avatar, OUTFITS, PALETTE, SKIN_TONES, HAIR_COLORS, EMOTES } from './avatar.js';
 import { Net } from './network.js';
+import { ScreenVideo, parseYouTubeId } from './video.js';
 import { Bots } from './bots.js';
 import { Music } from './audio.js';
 import { Effects, FW_COLORS } from './effects.js';
@@ -41,7 +42,7 @@ async function init() {
 
   // ---------- Renderer & scene ----------
   const canvas = $('#scene');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
@@ -97,6 +98,32 @@ async function init() {
   scene.add(photog.root);
   const photogState = { anim: 'idle', next: 0, said: 0 };
   avatars.add(groom).add(bride).add(photog);
+  // Lộ trình cô dâu chú rể đi chào bàn (dãy bàn 3, 6, 9 cạnh lối đi), tính theo giây
+  const TOUR = (() => {
+    const SPEED = 1.7;
+    const STOP = 7;
+    const home = [0, -8.4];
+    const spots = [[-19.4, -7, 3], [-19.4, 2, 6], [-19.4, 11, 9]];
+    const segs = [];
+    let cur = home;
+    let t = 0;
+    const move = (to) => { const d = Math.hypot(to[0] - cur[0], to[1] - cur[1]); segs.push({ move: true, from: cur, to, t0: t, dur: d / SPEED }); t += d / SPEED; cur = to; };
+    for (const sp of spots) { move(sp); segs.push({ move: false, at: sp, table: sp[2], t0: t, dur: STOP }); t += STOP; }
+    move(spots[0]);
+    move(home);
+    return {
+      total: t,
+      at(time) {
+        const i = segs.findIndex((g) => time < g.t0 + g.dur);
+        const g = segs[i < 0 ? segs.length - 1 : i];
+        if (!g.move) return { x: g.at[0], z: g.at[1], yaw: -Math.PI / 2, moving: false, table: g.table, seg: i };
+        const k = Math.min(1, (time - g.t0) / g.dur);
+        const dx = g.to[0] - g.from[0];
+        const dz = g.to[1] - g.from[1];
+        return { x: g.from[0] + dx * k, z: g.from[1] + dz * k, yaw: Math.atan2(dx, dz), moving: true, table: 0, seg: i };
+      },
+    };
+  })();
   const couple = {
     greetCd: 0, act: 0, groomAnim: 'idle', brideAnim: 'idle', kiss: 0, kissFx: 0, bouquetAt: 0,
     over: new Map(), // avatar -> { anim, until, yaw }
@@ -477,6 +504,17 @@ async function init() {
       },
     },
     { id: 'photo', key: 'P', icon: '📸', name: 'Chụp ảnh', cd: 1, run: () => takePhoto('selfie') },
+    {
+      id: 'confetti', key: 'C', icon: '🎊', name: 'Pháo giấy', cd: 1.5,
+      run: () => {
+        const p = state.me.pos.clone().add(forward(1.2));
+        fx.confetti(p, 110);
+        music.sfx('pop', 0.8);
+        setEmote('cheer', 1.5);
+        sendFx('confetti', p);
+        bots.react(p, 'cheer', 8, 0.6, ['Yeee 🎊', 'Vui quá trời!', 'Chúc mừng chúc mừng! 🎉']);
+      },
+    },
   ];
   const actionBar = $('#actionBar');
   for (const a of ACTIONS) {
@@ -547,7 +585,18 @@ async function init() {
     { x: decor.cart.pos.x + 1.2, z: decor.cart.pos.z, r: 1.9, actions: [{ label: '🍦 Lấy một cây kem', run: getIceCream }] },
     { x: pianoSeat.x, z: pianoSeat.z, r: 1.3, actions: [{ label: '🎹 Chơi đàn piano', run: () => sit(pianoSeat) }] },
     { x: decor.pond.pos.x, z: decor.pond.pos.z, r: 5.4, actions: [{ label: '🦢 Cho thiên nga ăn', run: () => feedSwans() }] },
-    { x: 0, z: -6.4, r: 3.3, actions: [{ label: '💐 Xin hoa cưới', run: () => bouquetToss() }, { label: '💋 Hô "Hôn đi!"', run: () => coupleKiss() }] },
+    {
+      // Đi theo vị trí thật của cô dâu chú rể (kể cả khi họ đi chào bàn)
+      get x() { return (groom.root.position.x + bride.root.position.x) / 2; },
+      get z() { return (groom.root.position.z + bride.root.position.z) / 2; },
+      r: 3.6,
+      actions: [
+        { label: '🧧 Trao phong bì', run: () => openEnvelope() },
+        { label: '📸 Chụp cùng cô dâu chú rể', run: () => walkTo(bride.root.position, 2.0, () => takePhoto('selfie', bride)) },
+        { label: '💐 Xin hoa cưới', run: () => bouquetToss() },
+        { label: '💋 Hô "Hôn đi!"', run: () => coupleKiss() },
+      ],
+    },
     { x: venue.cake.x, z: venue.cake.z, r: 2.4, actions: [{ label: '🍰 Ăn bánh cưới', run: eatCake }] },
     { x: 38.4, z: 30, r: 2.3, actions: [{ label: '🍹 Gọi cocktail', run: orderDrink }] },
     { x: -31, z: 37, r: 4.2, actions: [{ label: '🎞️ Photobooth 4 kiểu', run: () => takePhoto('booth') }, { label: '📸 Chụp 1 tấm check-in', run: () => takePhoto('backdrop') }] },
@@ -564,7 +613,15 @@ async function init() {
   function findOptions() {
     const me = state.me;
     if (!me || state.photo) return [];
-    if (me.sit) return [{ label: '🧍 Đứng dậy', run: standUp }];
+    if (me.sit) {
+      if (me.sit.kind !== 'banquet') return [{ label: '🧍 Đứng dậy', run: standUp }];
+      return [
+        { label: '📜 Xem thực đơn', run: openMenu },
+        { label: '🍻 1-2-3 Dô cả bàn!', run: tableCheers },
+        { label: '🥢 Gắp món', run: eatDish },
+        { label: '🧍 Đứng dậy', run: standUp },
+      ];
+    }
     const dp = decor.dog.pos;
     if (Math.hypot(me.pos.x - dp.x, me.pos.z - dp.z) < 1.9) {
       return [{ label: '🐶 Xoa đầu cún', run: petDog }, { label: decor.dog.followT > 0 ? '🏠 Cho cún tự chơi' : '🦮 Rủ cún đi dạo', run: toggleDog }];
@@ -588,9 +645,9 @@ async function init() {
     state.optSig = sig;
     promptEl.innerHTML = '';
     promptEl.classList.toggle('hidden', !opts.length);
-    opts.slice(0, 2).forEach((o, i) => {
+    opts.slice(0, 4).forEach((o, i) => {
       const b = document.createElement('button');
-      b.innerHTML = `${isTouch ? '' : `<kbd>${i ? 'R' : 'E'}</kbd>`}${o.label}`;
+      b.innerHTML = `${isTouch ? '' : `<kbd>${'ERTY'[i]}</kbd>`}${o.label}`;
       b.addEventListener('click', () => runOption(i));
       promptEl.append(b);
     });
@@ -743,9 +800,12 @@ async function init() {
     { name: 'Điệu nhảy đầu tiên', mc: 'Và đây là điệu nhảy đầu tiên của cô dâu chú rể! 💃🕺', run: () => { couple.firstDance = 20; } },
     { name: 'Tung hoa cưới', mc: 'Cô dâu chuẩn bị tung hoa cưới! Ai sẽ là người may mắn? 💐', run: bouquetToGuest },
     { name: 'Thả đèn trời', mc: 'Cùng thả đèn trời gửi lời chúc tới đôi uyên ương! 🏮 (bấm phím L)', run: lanternRelease },
+    { name: 'Đi chào bàn', mc: 'Cô dâu chú rể đi chào từng bàn, mời cả nhà nâng ly! 🍻 Ngồi vào bàn để đón nhé', run: () => { couple.tour = Date.now(); } },
   ];
   const PERIOD = 120000;
   let progIdx = Math.floor(Date.now() / PERIOD);
+  // Vào trang giữa lúc cô dâu chú rể đang đi chào bàn → vẫn thấy họ ở đúng vị trí
+  if (PROGRAM[progIdx % PROGRAM.length].name === 'Đi chào bàn' && Date.now() - progIdx * PERIOD < TOUR.total * 1000) couple.tour = progIdx * PERIOD;
   let progShown = '';
   function updateProgram() {
     const now = Date.now();
@@ -877,6 +937,9 @@ async function init() {
     { id: 'dance', label: '💃 Mời nhảy', emote: 'dance', dist: 2 },
     { id: 'hug', label: '🤗 Ôm', emote: 'hug', dist: 1.05 },
     { id: 'photo', label: '📸 Chụp chung', dist: 2.2 },
+    { id: 'highfive', label: '✋ Đập tay', emote: 'wave', dist: 1.1 },
+    { id: 'lixi', label: '🧧 Lì xì', emote: 'bow', dist: 0 },
+    { id: 'flower', label: '🌹 Tặng hoa', emote: 'heart', dist: 0 },
     { id: 'follow', label: '🚶 Đi theo', dist: 0 },
   ];
   const socialEl = $('#socialMenu');
@@ -938,6 +1001,9 @@ async function init() {
     else if (act === 'hug') { fx.hearts(mid, 8); fx.ring(mid, '#ffc2d4', 0.9, 2); }
     else if (act === 'dance') { fx.note(a); fx.note(b); fx.sound('chime', mid); }
     else if (act === 'wave') fx.ring(b, '#fff3b0', 0.6, 1.5);
+    else if (act === 'highfive') setTimeout(() => { fx.sparkle(mid.clone().setY(mid.y + 1.7)); fx.ring(mid, '#fff3b0', 0.5, 1.2); fx.sound('pop', mid); }, 450);
+    else if (act === 'lixi') fx.throwArc(fx.makeEnvelope(), fromAv.handWorld(), () => toAv.handWorld(), 0.9, 1.2, (o) => { o.userData.dispose(); fx.sparkle(b); fx.sound('chime', b); });
+    else if (act === 'flower') { fx.heartsTo(a, b, 5); setTimeout(() => fx.petals(b, toAv.root.rotation.y, 25), 600); }
   }
   const COUPLE_REPLY = {
     wave: ['Chào bạn nha! 👋', 'Cảm ơn bạn đã đến! 💕'],
@@ -945,9 +1011,12 @@ async function init() {
     heart: ['Thương bạn 💕', 'Cảm ơn bạn nhiều nha 🥰'],
     dance: ['Nhảy thôi! 💃', 'Lát ra sàn nhảy nha 🕺'],
     hug: ['Ôm cái nào 🤗', 'Vui quá đi 🥹'],
+    highfive: ['Đập tay nào! ✋', 'Yeah! 🙌'],
+    lixi: ['Ôi lì xì! Cảm ơn bạn 🧧', 'Lộc đầu tiên của vợ chồng mình 😆'],
+    flower: ['Hoa đẹp quá, cảm ơn bạn 🌹', 'Thơm quá đi 🥰'],
   };
   function coupleRespond(av, act) {
-    const anim = { wave: 'wave', toast: 'toast', heart: 'heart', dance: 'dance', hug: 'hug' }[act] || 'wave';
+    const anim = { wave: 'wave', toast: 'toast', heart: 'heart', dance: 'dance', hug: 'hug', highfive: 'wave', lixi: 'bow', flower: 'heart' }[act] || 'wave';
     const me = state.me;
     couple.over.set(av, { anim, until: performance.now() + 4000, yaw: Math.atan2(me.pos.x - av.root.position.x, me.pos.z - av.root.position.z) });
     setTimeout(() => av.say(pick(COUPLE_REPLY[act] || COUPLE_REPLY.wave), 4000), 400);
@@ -1083,7 +1152,7 @@ async function init() {
     camera.aspect = PHOTO_A;
     camera.fov = fov;
     camera.updateProjectionMatrix();
-    render();
+    render(false);
     const url = canvas.toDataURL('image/jpeg', 0.9);
     renderer.setPixelRatio(pr);
     renderer.setSize(sw, sh, false);
@@ -1287,16 +1356,45 @@ async function init() {
     net.send({ t: 'chat', text });
   });
 
-  function toast(html, ms = 3500) {
+  function toast(html, ms = 3500, action = null) {
     const t = document.createElement('div');
     t.className = 'toast';
     t.innerHTML = html;
+    if (action) {
+      const b = document.createElement('button');
+      b.className = 'toast-btn';
+      b.textContent = action.label;
+      b.addEventListener('click', () => { t.remove(); action.run(); });
+      t.classList.add('has-btn');
+      t.append(b);
+    }
     $('#toasts').append(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); }, ms);
   }
 
   // ---------- Nhạc & đồ hoạ ----------
+  // Nhạc nền = video YouTube trên màn hình sân khấu (nếu cấu hình), nếu lỗi thì dùng nhạc dự phòng
+  const screenVideo = new ScreenVideo({ videoId: parseYouTubeId(WEDDING.music?.youtube), center: V3(31, 4.2, -13.83), width: 9.6, camera });
+  screenVideo.onFail = () => {
+    if (!music.on) return;
+    music.on = false;
+    setMusic(true);
+  };
+  screenVideo.onReady = () => { if (music.on) screenVideo.setSound(true); };
+  addEventListener('pointerdown', () => screenVideo.kick(), { passive: true });
+  const origDuck = music.duck.bind(music);
+  music.duck = (on) => { origDuck(on); screenVideo.setVolume(on ? 25 : 100); };
   function setMusic(on) {
+    if (screenVideo.active) {
+      // Chỉ bật/tắt tiếng video; vẫn khởi tạo âm thanh để có hiệu ứng (sfx)
+      if (!music.ctx) music.init();
+      music.ctx.resume();
+      music.on = on;
+      screenVideo.setSound(on);
+      $('#btnMusic').innerHTML = on ? '🔇<span class="lb"> Tắt nhạc</span>' : '🎵<span class="lb"> Bật nhạc</span>';
+      if (on) toast('🎵 Nhạc đang phát trên màn hình sân khấu 📺');
+      return;
+    }
     if (on) music.start(); else music.stop();
     $('#btnMusic').innerHTML = music.on ? '🔇<span class="lb"> Tắt nhạc</span>' : '🎵<span class="lb"> Bật nhạc</span>';
     if (on && music.playingTrack) toast(`🎵 Đang phát: <b>${esc(music.trackTitle)}</b>`);
@@ -1353,7 +1451,7 @@ async function init() {
     if (state.mode === 'play' && m.zone === state.zone?.id) addChat(p.name, m.text);
   });
   net.on('wish', (m) => onWish(m.wish));
-  const SOCIAL_TEXT = { wave: 'vẫy chào', toast: 'cụng ly với', heart: 'gửi tim cho', dance: 'mời nhảy', hug: 'ôm' };
+  const SOCIAL_TEXT = { wave: 'vẫy chào', toast: 'cụng ly với', heart: 'gửi tim cho', dance: 'mời nhảy', hug: 'ôm', highfive: 'đập tay với', lixi: 'lì xì cho', flower: 'tặng hoa cho' };
   net.on('fx', (m) => {
     const p = V3(...(m.p || [0, 0, 0]));
     const peer = state.peers.get(m.id);
@@ -1372,6 +1470,27 @@ async function init() {
       case 'champagne': pourChampagne(true); break;
       case 'lock': addLove(true, m.c); break;
       case 'swan': feedSwans(true, p); break;
+      case 'confetti': fx.confetti(p, 110); break;
+      case 'envelope': {
+        if (!peer) return;
+        fx.throwArc(fx.makeEnvelope(), peer.av.handWorld(), () => groom.handWorld(), 1.1, 1.6, (o) => { o.userData.dispose(); fx.hearts(groom.root.position, 6); });
+        coupleThanks(peer.av, false);
+        addChat('', `💌 ${peer.name} vừa trao phong bì mừng cưới cho cô dâu chú rể`, null, true);
+        break;
+      }
+      case 'cheers': {
+        fx.sound('clink', p);
+        setTimeout(() => fx.sparkle(p.clone().setY(1.4)), 400);
+        const me = state.me;
+        if (!me || !peer) return;
+        const mine = me.sit?.kind === 'banquet' && tableOf(me.pos)?.n === +m.a;
+        if (mine || me.pos.distanceTo(p) < 4.5) {
+          setEmote('toast', 3);
+          me.av.say(pick(['Dô! 🍻', 'Trăm phần trăm! 🍻', '1-2-3 Dô! 🥂']), 3000);
+          toast(`🍻 <b>${esc(peer.name)}</b> mời cả bàn nâng ly!`);
+        }
+        break;
+      }
       case 'booth': {
         if (!peer) return;
         decor.photobooth.setBusy(true);
@@ -1386,13 +1505,122 @@ async function init() {
         if (!target) return;
         socialFx(peer.av, target, m.a);
         if (toMe) {
-          toast(`<b>${esc(peer.name)}</b> ${SOCIAL_TEXT[m.a] || 'chào'} bạn! <span class="muted">Bấm vào họ để đáp lại</span>`, 4500);
+          const extra = m.a === 'lixi' ? ` · Lộc: <b>${pick(FORTUNES)}</b>` : '';
+          const sAct = SOCIAL.find((x) => x.id === m.a) || SOCIAL[0];
+          toast(`<b>${esc(peer.name)}</b> ${SOCIAL_TEXT[m.a] || 'chào'} bạn!${extra}`, 6000, { label: '↩️ Đáp lại', run: () => doSocial(peer.av, sAct) });
           music.sfx('pop', 0.6);
         }
         break;
       }
       default:
     }
+  });
+
+  // ---------- Bàn tiệc: thực đơn, nâng ly cả bàn, gắp món ----------
+  const tableOf = (p) => {
+    let best = null;
+    let bd = 3.2;
+    for (const t of venue.tables) { const d = Math.hypot(p.x - t.x, p.z - t.z); if (d < bd) { bd = d; best = t; } }
+    return best;
+  };
+  const botsAtTable = (t) => bots.list.filter((b) => b.chair && Math.hypot(b.pos.x - t.x, b.pos.z - t.z) < 2.6);
+  function openMenu() {
+    const t = tableOf(state.me.pos);
+    $('#menuSub').textContent = `${t ? `Bàn ${t.n} · ` : ''}${WEDDING.venue}`;
+    $('#menuList').innerHTML = MENU.map((g) => `<div class="menu-group"><h4>${esc(g.group)}</h4>${g.items.map((i) => `<p>${esc(i)}</p>`).join('')}</div>`).join('');
+    openModal('#menuModal');
+  }
+  function tableCheers() {
+    const me = state.me;
+    const t = tableOf(me.pos);
+    if (!t) return;
+    const c = V3(t.x, 1.2, t.z);
+    setEmote('toast', 3.5);
+    me.av.say('1… 2… 3… Dô! 🍻', 3500);
+    setTimeout(() => { fx.sparkle(c); music.sfx('clink', 0.8); }, 700);
+    botsAtTable(t).forEach((b, i) => {
+      b.act = 'toast';
+      b.timer = Math.max(b.timer || 0, 3.5);
+      setTimeout(() => b.av.say(pick(['Dô! 🍻', 'Trăm phần trăm! 🍻', 'Chúc mừng cô dâu chú rể! 🥂', 'Cạn ly nào! 🍺']), 3000), 500 + i * 250);
+    });
+    sendFx('cheers', c, { a: String(t.n) });
+  }
+  const DISH_LINES = ['Gà luộc lá chanh ngon xuất sắc 🐔😋', 'Xôi gấc đỏ, may mắn cả năm ❤️', 'Nem rán giòn rụm 😋', 'Tôm hấp tươi rói 🦐', 'Cho mình xin thêm bát canh 🥣', 'Lẩu này đỉnh thật sự 🍲'];
+  function eatDish() {
+    const me = state.me;
+    const t = tableOf(me.pos);
+    me.av.say(pick(DISH_LINES), 3500);
+    if (t) fx.sparkle(V3(t.x, 0.9, t.z));
+    music.sfx('pop', 0.5);
+    if (t && Math.random() < 0.6) {
+      const b = pick(botsAtTable(t));
+      if (b) setTimeout(() => b.av.say(pick(['Ăn đi ăn đi, đừng ngại 😄', 'Gắp cho mình miếng với 😆', 'Ngon thật đó!']), 3000), 900);
+    }
+  }
+  $('#menuEat').addEventListener('click', () => { $('#menuModal').classList.add('hidden'); eatDish(); });
+
+  // ---------- Trao phong bì cho cô dâu chú rể ----------
+  const AMOUNTS = [200, 300, 500, 1000, 2000, 5000];
+  const fmtK = (k) => (k >= 1000 ? `${(k / 1000).toLocaleString('vi-VN')} triệu` : `${k}k`);
+  const giftCfg = WEDDING.gift || {};
+  const canQR = !!(giftCfg.account && giftCfg.bankId);
+  let envAmount = 500;
+  $('#envAmounts').innerHTML = AMOUNTS.map((k) => `<button type="button" data-k="${k}">${fmtK(k)}</button>`).join('');
+  $('#envAmounts').classList.toggle('hidden', !canQR);
+  $('#envOther').classList.toggle('hidden', !canQR);
+  const markAmount = () => $('#envAmounts').querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.k === envAmount));
+  $('#envAmounts').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) { envAmount = +b.dataset.k; $('#envOther').value = ''; markAmount(); } });
+  $('#envOther').addEventListener('input', () => { const v = parseInt($('#envOther').value.replace(/\D/g, ''), 10); if (v > 0) { envAmount = v; markAmount(); } });
+  markAmount();
+  function openEnvelope() { openModal('#envModal'); }
+  function coupleThanks(av, mine) {
+    const face = (x) => Math.atan2(av.root.position.x - x.root.position.x, av.root.position.z - x.root.position.z);
+    couple.over.set(groom, { anim: 'bow', until: performance.now() + 3000, yaw: face(groom) });
+    couple.over.set(bride, { anim: 'bow', until: performance.now() + 3000, yaw: face(bride) });
+    setTimeout(() => {
+      groom.say(pick(['Cảm ơn bạn nhiều nha! 🙏', 'Quý hoá quá, cảm ơn bạn! 🙏']), 3500);
+      bride.say(pick(['Thương bạn lắm 🥰', 'Cảm ơn bạn đã đến chung vui 💕']), 3500);
+      if (mine) { fx.hearts(groom.root.position, 8); music.sfx('chime'); }
+    }, 1200);
+  }
+  const noAccent = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+  $('#envForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    $('#envModal').classList.add('hidden');
+    const me = state.me;
+    if (!me) return;
+    const text = $('#envText').value.trim() || 'Chúc hai bạn trăm năm hạnh phúc! 🧧';
+    $('#envText').value = '';
+    const mid = groom.root.position.clone().lerp(bride.root.position, 0.5);
+    walkTo(mid, 1.7, () => {
+      me.yaw = Math.atan2(mid.x - me.pos.x, mid.z - me.pos.z);
+      setEmote('bow', 2.5);
+      fx.throwArc(fx.makeEnvelope(), me.av.handWorld(), () => groom.handWorld(), 1.0, 1.0, (o) => o.userData.dispose());
+      coupleThanks(me.av, true);
+      sendFx('envelope', me.pos);
+      const wish = { name: prof.name || 'Khách', sub: prof.sub, text, gift: true, time: Date.now() };
+      if (net.online) net.send({ t: 'wish', ...wish }); else onWish({ ...wish, id: 'me' });
+      toast('🧧 Đã trao phong bì tận tay cô dâu chú rể! Lời chúc đã vào sổ lưu bút 💖', 4500);
+      if (canQR) {
+        const amount = envAmount * 1000;
+        const info = noAccent(`Mung cuoi ${prof.name || ''}`).slice(0, 40);
+        $('#qrImg').src = `https://img.vietqr.io/image/${encodeURIComponent(giftCfg.bankId)}-${encodeURIComponent(giftCfg.account)}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(info)}&accountName=${encodeURIComponent(giftCfg.owner || '')}`;
+        $('#qrNote').textContent = `Nếu muốn gửi mừng thật ${fmtK(envAmount)}, quét mã bằng app ngân hàng.`;
+        $('#qrBank').innerHTML = `🏦 <b>${esc(giftCfg.bank || giftCfg.bankId)}</b><br>STK: <b>${esc(giftCfg.account)}</b><br>Chủ TK: ${esc(giftCfg.owner || '')}`;
+        setTimeout(() => openModal('#qrModal'), 2200);
+      }
+    });
+  });
+
+  // ---------- Mời bạn bè ----------
+  $('#hInvite').addEventListener('click', async () => {
+    const url = location.origin + location.pathname;
+    const text = `Mời bạn đến dự đám cưới ${WEDDING.groom} & ${WEDDING.bride} online 💍 ${WEDDING.date}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: `${WEDDING.groom} & ${WEDDING.bride}`, text, url }); return; }
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast('📋 Đã copy link mời, gửi cho bạn bè nhé!');
+    } catch { /* người dùng huỷ chia sẻ */ }
   });
 
   // ---------- Thả cảm xúc ----------
@@ -1623,6 +1851,8 @@ async function init() {
     if (e.key === '0' || e.key === 'Escape') setEmote(null);
     if (e.code === 'KeyE') runOption(0);
     if (e.code === 'KeyR') runOption(1);
+    if (e.code === 'KeyT') runOption(2);
+    if (e.code === 'KeyY') runOption(3);
     const act = ACTIONS.find((a) => e.code === `Key${a.key}`);
     if (act) doAction(act);
     if (e.code === 'KeyV') state.firstPerson = !state.firstPerson;
@@ -1913,7 +2143,40 @@ async function init() {
     let byaw = 0;
     let ga = couple.groomAnim;
     let ba = couple.brideAnim;
-    if (couple.firstDance > 0) {
+    let tour = null;
+    if (couple.tour) {
+      const tt = (Date.now() - couple.tour) / 1000;
+      if (tt > TOUR.total || tt < 0) couple.tour = 0; else tour = TOUR.at(tt);
+    }
+    if (tour && !(couple.kiss > 0) && !(couple.firstDance > 0)) {
+      // Đi chào bàn: hai người đi cạnh nhau, dừng ở mỗi bàn nâng ly
+      const rx = Math.cos(tour.yaw);
+      const rz = -Math.sin(tour.yaw);
+      gx = tour.x - rx * 0.45; gz = tour.z - rz * 0.45;
+      bx = tour.x + rx * 0.45; bz = tour.z + rz * 0.45;
+      gyaw = byaw = tour.yaw;
+      ga = ba = tour.moving ? 'walk' : 'toast';
+      if (tour.seg !== couple.tourSeg) {
+        couple.tourSeg = tour.seg;
+        if (!tour.moving) {
+          const t = venue.tables.find((x) => x.n === tour.table);
+          setTimeout(() => groom.say(pick(['Cảm ơn cả bàn đã đến chung vui! 🍻', 'Mời cả nhà nâng ly cùng vợ chồng em! 🥂', 'Ăn uống thật vui nha mọi người! 🍻']), 4500), 300);
+          setTimeout(() => bride.say(pick(['Dô! 🥂', 'Chúc cả nhà vui vẻ, mạnh khoẻ 💕', 'Một hai ba, dô! 🍻']), 4000), 1600);
+          if (t) {
+            setTimeout(() => { fx.sparkle(V3(t.x, 1.3, t.z)); fx.sound('clink', V3(t.x, 1, t.z)); }, 2000);
+            botsAtTable(t).forEach((b, i) => {
+              b.act = 'toast';
+              b.timer = Math.max(b.timer || 0, 5);
+              setTimeout(() => b.av.say(pick(['Chúc mừng hạnh phúc! 🥂', 'Trăm năm hạnh phúc nha! 💕', 'Dô! 🍻', 'Sớm có tin vui nhé 😆']), 3500), 900 + i * 300);
+            });
+            const me = state.me;
+            if (me && Math.hypot(me.pos.x - t.x, me.pos.z - t.z) < 6) {
+              toast('🍻 Cô dâu chú rể đến chào bàn bạn!', 6500, { label: '🥂 Nâng ly', run: () => { setEmote('toast', 3); me.av.say('Chúc mừng hạnh phúc! 🥂', 3000); } });
+            }
+          }
+        }
+      }
+    } else if (couple.firstDance > 0) {
       couple.firstDance -= dt;
       couple.danceAng = (couple.danceAng || 0) + dt * 0.7;
       const th = couple.danceAng;
@@ -1943,8 +2206,10 @@ async function init() {
     bride.root.position.z = damp(bride.root.position.z, bz, 3, dt);
     groom.root.rotation.y = lerpAngle(groom.root.rotation.y, gyaw, 1 - Math.exp(-5 * dt));
     bride.root.rotation.y = lerpAngle(bride.root.rotation.y, byaw, 1 - Math.exp(-5 * dt));
-    groom.update(dt, ga);
-    bride.update(dt, ba);
+    groom.root.position.y = damp(groom.root.position.y, venue.heightAt(groom.root.position.x, groom.root.position.z), 6, dt);
+    bride.root.position.y = damp(bride.root.position.y, venue.heightAt(bride.root.position.x, bride.root.position.z), 6, dt);
+    groom.update(dt, ga, ga === 'walk' ? 1.7 : 0);
+    bride.update(dt, ba, ba === 'walk' ? 1.7 : 0);
     // Thợ ảnh: cầm máy khi đang chụp, vẫy gọi khi có người lại gần
     const shooting = state.photo && (state.photo.kind === 'booth' || state.photo.kind === 'backdrop');
     if (!shooting && now > photogState.next) {
@@ -1984,8 +2249,26 @@ async function init() {
   let noteTimer = 0;
   let showTimer = 12;
   const focus = new THREE.Vector3();
-  function render() {
+  // withScreen = false khi chụp ảnh (canvas cần ảnh đầy đủ, không khoét lỗ cho video)
+  function render(withScreen = true) {
+    const scr = withScreen && screenVideo.visible();
     if (hiFx) composer.render(); else renderer.render(scene, camera);
+    if (scr) {
+      renderer.autoClear = false;
+      if (hiFx) {
+        // Hậu kỳ không giữ độ sâu trên màn hình → vẽ lại độ sâu (không vẽ màu) để người trên sân khấu che đúng video
+        renderer.clearDepth();
+        const cb = renderer.state.buffers.color;
+        cb.setMask(false);
+        cb.setLocked(true);
+        renderer.render(scene, camera);
+        cb.setLocked(false);
+        cb.setMask(true);
+      }
+      renderer.render(screenVideo.holeScene, camera);
+      renderer.autoClear = true;
+    }
+    if (withScreen) screenVideo.renderCss();
   }
   function frame() {
     requestAnimationFrame(frame);
@@ -2063,6 +2346,7 @@ async function init() {
   }
 
   addEventListener('resize', () => {
+    screenVideo.resize();
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
@@ -2071,7 +2355,7 @@ async function init() {
   });
 
   // Gỡ lỗi: mở trang với ?debug để truy cập trạng thái từ console
-  if (new URLSearchParams(location.search).has('debug')) window.__wedding = { THREE, scene, camera, fx, state, venue, bots, ambient, music, decor };
+  if (new URLSearchParams(location.search).has('debug')) window.__wedding = { THREE, scene, camera, fx, state, venue, bots, ambient, music, decor, couple, groom, bride };
 
   refreshCounts();
   frame();
