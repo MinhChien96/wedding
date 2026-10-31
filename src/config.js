@@ -14,6 +14,8 @@ export const WEDDING = {
     // Video YouTube phát lặp liên tục trên màn hình LED sân khấu và làm nhạc nền cho cả web.
     // Để trống nếu không dùng; khi video không phát được (bị chặn nhúng...) web tự dùng nhạc dự phòng bên dưới.
     youtube: 'https://youtu.be/IOe0tNoUGv8',
+    // Âm lượng nhạc nền (0–100). Khi bật voice / có người nói / có người hát, nhạc tự hạ thấp hơn nữa.
+    volume: 35,
     title: 'I Do – Đức Phúc',
     src: '/music/i-do.mp3',
   },

@@ -21,7 +21,7 @@ export class ScreenVideo {
     this.ok = false; // video đã sẵn sàng phát
     this.failed = !videoId;
     this.wantSound = false;
-    this.volume = 100;
+    this.volume = 35;
     this.onFail = null;
     this.onReady = null;
     if (this.failed) return;

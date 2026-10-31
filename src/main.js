@@ -1384,8 +1384,25 @@ async function init() {
   };
   screenVideo.onReady = () => { if (music.on) screenVideo.setSound(true); };
   addEventListener('pointerdown', () => screenVideo.kick(), { passive: true });
-  const origDuck = music.duck.bind(music);
-  music.duck = (on) => { origDuck(on); screenVideo.setVolume(on ? 25 : 100); };
+  // ----- Bộ trộn âm lượng nhạc nền: luôn nhỏ hơn giọng nói -----
+  // Nhạc (video sân khấu hoặc nhạc dự phòng) tự hạ khi bật voice, khi có người đang nói gần, khi có người hát, khi chơi piano.
+  const BASE_VOL = Math.max(0, Math.min(100, WEDDING.music?.volume ?? 35));
+  const mix = { piano: false, singing: false, speaking: new Set(), lastSpeak: 0, cur: -1 };
+  function applyMix() {
+    let v = BASE_VOL;
+    if (voice.joined) v = Math.min(v, Math.round(BASE_VOL * 0.6));
+    if (mix.singing) v = Math.min(v, Math.round(BASE_VOL * 0.6));
+    if (mix.speaking.size || performance.now() - mix.lastSpeak < 1500) v = Math.min(v, Math.round(BASE_VOL * 0.3));
+    if (mix.piano) v = Math.min(v, Math.round(BASE_VOL * 0.35));
+    if (v === mix.cur) return;
+    mix.cur = v;
+    screenVideo.setVolume(v);
+    const k = v / 100;
+    if (music.audio) music.audio.volume = Math.min(1, 1.1 * k);
+    if (music.musicGain) music.musicGain.gain.value = Math.min(1, 2 * k);
+  }
+  music.duck = (on) => { mix.piano = on; applyMix(); };
+  setInterval(applyMix, 300);
   function setMusic(on) {
     if (screenVideo.active) {
       // Chỉ bật/tắt tiếng video; vẫn khởi tạo âm thanh để có hiệu ứng (sfx)
@@ -1664,6 +1681,9 @@ async function init() {
   }
   voice.onChange = voiceUi;
   voice.onSpeaking = (id, on) => {
+    // Có người đang nói (kể cả mình) → hạ nhạc nền thêm để nghe rõ
+    if (on) mix.speaking.add(id); else { mix.speaking.delete(id); mix.lastSpeak = performance.now(); }
+    applyMix();
     if (id === 'me') { vBtn.classList.toggle('talk', on); if (state.me) setSpeakIcon(state.me.av, on); return; }
     setSpeakIcon(state.peers.get(id)?.av, on);
   };
@@ -1672,7 +1692,7 @@ async function init() {
     if (on && p) toast(`🎤 <b>${esc(p.name)}</b> đang cầm mic hát trên sân khấu!`, 5000);
   };
   // Có người hát trên sân khấu → giảm nhạc nền để nghe rõ giọng
-  voice.onSinging = (on) => { screenVideo.setVolume(on ? 25 : 100); if (music.musicGain) music.musicGain.gain.value = on ? 0.3 : 1; };
+  voice.onSinging = (on) => { mix.singing = on; applyMix(); };
   // ----- Xin quyền micro: hộp giải thích → bấm nút → trình duyệt hiện hỏi quyền; bị chặn thì hướng dẫn mở lại -----
   const UA = navigator.userAgent;
   const inApp = /Zalo|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|TikTok|musical_ly/i.test(UA);

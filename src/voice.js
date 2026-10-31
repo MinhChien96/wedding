@@ -110,6 +110,7 @@ export class Voice {
     this.local = null;
     this.localLevel = null;
     this.micOn = this.hasMic = this.stage = false;
+    if (this.meSpeaking) { this.meSpeaking = false; this.onSpeaking?.('me', false); }
     this.setSinging(false);
     this.onChange?.();
   }
