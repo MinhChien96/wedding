@@ -33,28 +33,46 @@ export class Voice {
     this.singing = false;
   }
 
+  // Chỉ cần WebRTC để nghe; micro là tuỳ chọn
   get supported() {
-    return !!(window.RTCPeerConnection && navigator.mediaDevices?.getUserMedia);
+    return !!window.RTCPeerConnection;
+  }
+
+  // Xin quyền micro – PHẢI gọi ngay trong sự kiện bấm của người dùng để trình duyệt hiện hộp hỏi quyền
+  requestMic() {
+    this.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    this.ctx.resume();
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const e = new Error('getUserMedia unsupported');
+      e.name = 'Unsupported';
+      return Promise.reject(e);
+    }
+    return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  }
+
+  // Trạng thái quyền micro nếu trình duyệt cho biết: 'granted' | 'denied' | 'prompt' | 'unknown'
+  async micPermission() {
+    try { return (await navigator.permissions.query({ name: 'microphone' })).state; } catch { return 'unknown'; }
+  }
+
+  // Đang chỉ nghe mà vừa được cấp micro → vào lại voice kèm micro
+  async upgrade(stream) {
+    if (this.joined) this.leave();
+    return this.join(stream);
   }
 
   r(path) { return child(ref(this.net.db, 'wedding'), path); }
 
   // Gọi trong thao tác của người dùng (bấm nút) để được cấp quyền micro / phát âm thanh
-  async join() {
+  // stream = luồng micro đã xin được; null = chỉ nghe
+  async join(stream = null) {
     if (this.joined || !this.net.online || !this.net.id) return false;
     this.ctx ||= new (window.AudioContext || window.webkitAudioContext)();
     this.ctx.resume();
-    try {
-      this.local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-      this.hasMic = true;
-      this.micOn = true;
-      this.localLevel = this.makeAnalyser(this.local);
-    } catch {
-      // Không cho dùng micro → vẫn vào nghe được
-      this.local = null;
-      this.hasMic = false;
-      this.micOn = false;
-    }
+    this.local = stream;
+    this.hasMic = !!stream;
+    this.micOn = !!stream;
+    this.localLevel = stream ? this.makeAnalyser(stream) : null;
     this.id = this.net.id;
     this.joined = true;
     const me = this.r(`voice/${this.id}`);

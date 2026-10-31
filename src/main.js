@@ -1673,29 +1673,98 @@ async function init() {
   };
   // Có người hát trên sân khấu → giảm nhạc nền để nghe rõ giọng
   voice.onSinging = (on) => { screenVideo.setVolume(on ? 25 : 100); if (music.musicGain) music.musicGain.gain.value = on ? 0.3 : 1; };
-  async function voiceJoin() {
-    if (!voice.supported) { toast('Trình duyệt này chưa hỗ trợ voice chat 😢'); return false; }
-    if (!net.online) { toast('Cần kết nối mạng để bật voice chat'); return false; }
-    if (!state.me) return false;
-    const ok = await voice.join();
-    if (!ok) return false;
+  // ----- Xin quyền micro: hộp giải thích → bấm nút → trình duyệt hiện hỏi quyền; bị chặn thì hướng dẫn mở lại -----
+  const UA = navigator.userAgent;
+  const inApp = /Zalo|FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|Line\/|TikTok|musical_ly/i.test(UA);
+  const onIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const onAndroid = /Android/.test(UA);
+  let pendingStage = false;
+  function micHelpHtml(err) {
+    const name = err?.name || '';
+    const reload = '<div class="row"><button class="ghost" data-mic="reload">🔄 Tải lại trang</button></div>';
+    if (inApp) {
+      return 'Bạn đang mở web <b>trong ứng dụng</b> (Zalo, Messenger, Facebook...), ứng dụng này không cho web dùng micro.'
+        + '<ol><li>Bấm nút <b>⋯</b> hoặc <b>⋮</b> ở góc trên</li><li>Chọn <b>Mở bằng trình duyệt</b> (Safari / Chrome)</li><li>Vào lại tiệc và bật voice</li></ol>'
+        + '<div class="row"><button class="ghost" data-mic="copy">📋 Copy link</button></div>';
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'Không tìm thấy micro trên thiết bị. Hãy cắm tai nghe có mic rồi bấm Thử lại.';
+    if (name === 'NotReadableError' || name === 'AbortError') return 'Micro đang bận (đang gọi điện, ghi âm hoặc app khác dùng). Tắt app đó rồi bấm <b>Thử lại</b>.';
+    if (name === 'Unsupported' || name === 'SecurityError') return 'Trình duyệt này chưa cho web dùng micro. Hãy mở bằng <b>Safari</b> hoặc <b>Chrome</b> bản mới nhất.';
+    if (onIOS && /CriOS/.test(UA)) {
+      return '<ol><li>Mở app <b>Cài đặt</b> của iPhone → kéo xuống chọn <b>Chrome</b> → bật <b>Micrô</b></li><li>Quay lại đây, <b>tải lại trang</b> rồi bấm Cho phép micro</li></ol>' + reload;
+    }
+    if (onIOS) {
+      return '<ol><li>Bấm <b>aA</b> ở thanh địa chỉ → <b>Cài đặt trang web</b> → <b>Micrô</b> → <b>Cho phép</b></li><li>Nếu không có: <b>Cài đặt</b> iPhone → <b>Safari</b> → <b>Micrô</b> → <b>Cho phép</b></li><li><b>Tải lại trang</b> rồi thử lại</li></ol>' + reload;
+    }
+    if (onAndroid) {
+      return '<ol><li>Chạm biểu tượng <b>ⓘ / ổ khoá</b> cạnh địa chỉ web → <b>Quyền</b> → <b>Micrô</b> → <b>Cho phép</b></li><li>Nếu vẫn bị chặn: <b>Cài đặt</b> điện thoại → <b>Ứng dụng</b> → <b>Chrome</b> → <b>Quyền</b> → <b>Micrô</b> → <b>Cho phép</b></li><li><b>Tải lại trang</b> rồi thử lại</li></ol>' + reload;
+    }
+    return '<ol><li>Bấm biểu tượng <b>ổ khoá</b> cạnh địa chỉ web → <b>Micrô</b> → <b>Cho phép</b></li><li>Trên Mac: <b>Cài đặt hệ thống</b> → <b>Quyền riêng tư & Bảo mật</b> → <b>Micrô</b> → bật cho trình duyệt</li><li><b>Tải lại trang</b> rồi thử lại</li></ol>' + reload;
+  }
+  function showMicHelp(err, blockedAlready = false) {
+    const h = $('#micHelp');
+    h.innerHTML = `<b>${blockedAlready ? '🔒 Micro đang bị chặn cho trang này.' : '⚠️ Chưa bật được micro.'}</b>${micHelpHtml(err)}`;
+    h.classList.remove('hidden');
+    $('#micAllow').textContent = '🔄 Thử lại';
+  }
+  function openMicModal() {
+    if (!voice.supported) { toast('Trình duyệt này chưa hỗ trợ voice chat 😢 Hãy mở bằng Safari hoặc Chrome.'); return; }
+    if (!net.online) { toast('Cần kết nối mạng để bật voice chat'); return; }
+    $('#micHelp').classList.add('hidden');
+    $('#micAllow').textContent = '🎙️ Cho phép micro';
+    $('#micListen').classList.toggle('hidden', voice.joined);
+    openModal('#micModal');
+    if (inApp) showMicHelp({});
+    else voice.micPermission().then((st) => { if (st === 'denied') showMicHelp({ name: 'NotAllowedError' }, true); });
+  }
+  async function afterJoin(ok) {
+    if (!ok) { toast('Chưa vào được voice, thử lại sau nhé'); return; }
     toast(voice.hasMic
       ? '🎙️ Đã bật voice! Đứng gần ai sẽ nghe người đó. <b>Nên đeo tai nghe</b> để không bị vọng tiếng.'
-      : '🎧 Không dùng được micro, bạn vẫn nghe được mọi người. Cho phép micro trong cài đặt trình duyệt để nói chuyện.', 6500);
-    return true;
+      : '🎧 Bạn đang ở chế độ chỉ nghe. Bấm nút 🎧 bất cứ lúc nào để bật micro.', 6500);
+    if (pendingStage && voice.hasMic) { pendingStage = false; stageMic(); }
   }
-  vBtn.addEventListener('click', async () => {
+  $('#micAllow').addEventListener('click', () => {
+    // Gọi xin quyền NGAY trong lần bấm (không await trước) để trình duyệt hiện hộp hỏi quyền
+    const req = voice.requestMic();
+    req.then(async (stream) => {
+      $('#micModal').classList.add('hidden');
+      if (!state.me) { stream.getTracks().forEach((t) => t.stop()); return; }
+      afterJoin(voice.joined ? await voice.upgrade(stream) : await voice.join(stream));
+    }).catch((err) => {
+      console.warn('mic', err);
+      showMicHelp(err);
+    });
+  });
+  $('#micListen').addEventListener('click', async () => {
+    $('#micModal').classList.add('hidden');
+    pendingStage = false;
+    afterJoin(await voice.join(null));
+  });
+  $('#micHelp').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-mic]');
+    if (!b) return;
+    if (b.dataset.mic === 'reload') location.reload();
+    if (b.dataset.mic === 'copy') {
+      try { await navigator.clipboard.writeText(location.href.split('?')[0]); toast('📋 Đã copy link, dán vào Safari/Chrome nhé'); } catch { toast(location.href.split('?')[0], 8000); }
+    }
+  });
+  vBtn.addEventListener('click', () => {
     closeMenu();
-    if (!voice.joined) { await voiceJoin(); return; }
-    if (!voice.hasMic) { toast('Micro chưa được cấp quyền, bạn đang ở chế độ chỉ nghe'); return; }
+    if (!voice.joined || !voice.hasMic) { openMicModal(); return; }
     voice.setMic(!voice.micOn);
     toast(voice.micOn ? '🎙️ Đã bật mic' : '🔇 Đã tắt mic', 1800);
   });
   $('#hVoiceLeave').addEventListener('click', () => { voice.leave(); toast('Đã thoát voice chat'); });
   // Cầm mic sân khấu: cả tiệc (đang bật voice) đều nghe, không phụ thuộc khoảng cách
-  async function stageMic() {
-    if (!voice.joined && !(await voiceJoin())) { setEmote('sing'); return; }
-    if (!voice.hasMic) { toast('Cần cho phép micro để hát karaoke 🎤'); return; }
+  function stageMic() {
+    if (!voice.joined || !voice.hasMic) {
+      // Chưa có micro → mở hộp xin quyền, được rồi thì tự cầm mic
+      pendingStage = true;
+      setEmote('sing');
+      openMicModal();
+      return;
+    }
     voice.setStage(!voice.stage);
     if (voice.stage) {
       setEmote('sing', 0);
@@ -2448,7 +2517,7 @@ async function init() {
   });
 
   // Gỡ lỗi: mở trang với ?debug để truy cập trạng thái từ console
-  if (new URLSearchParams(location.search).has('debug')) window.__wedding = { THREE, scene, camera, fx, state, venue, bots, ambient, music, decor, couple, groom, bride };
+  if (new URLSearchParams(location.search).has('debug')) window.__wedding = { THREE, scene, camera, fx, state, venue, bots, ambient, music, decor, couple, groom, bride, net, voice };
 
   refreshCounts();
   frame();

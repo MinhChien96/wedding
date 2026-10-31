@@ -416,3 +416,11 @@ body:has(#hVoice.on) #hVoiceLeave, body:has(#hVoice.muted) #hVoiceLeave, body:ha
 @media (max-width: 760px), (max-height: 500px) {
   #hVoice { right: calc(var(--sr) + 8px); top: calc(var(--st) + 150px); bottom: auto; width: 42px; height: 42px; font-size: 19px; }
 }
+
+/* Hộp xin quyền micro */
+.mic-card { text-align: center; }
+.mic-ic { width: 64px; height: 64px; margin: 0 auto 4px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; background: linear-gradient(135deg, #ff6f91, #ff9671); box-shadow: 0 8px 20px rgba(255, 111, 145, 0.35); }
+.mic-help { text-align: left; background: #fff6e5; border: 1px solid #ffd59e; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.5; margin: 6px 0; }
+.mic-help ol { margin: 6px 0 4px; padding-left: 20px; }
+.mic-help li { margin: 3px 0; }
+.mic-help .row { margin-top: 6px; }
