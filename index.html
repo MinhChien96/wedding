@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Chiến & Xim – Đám cưới 3D 💒</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💒</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Great+Vibes&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="vignette"></div>
+    <div id="flash"></div>
+    <div id="countdown" class="hidden"></div>
+
+    <div id="loading">
+      <div class="loader-heart">💗</div>
+      <p>Đang chuẩn bị tiệc cưới...</p>
+    </div>
+
+    <header id="topbar">
+      <div class="brand">
+        <span class="script" id="coupleTitle"></span>
+        <span class="sub" id="weddingDate"></span>
+      </div>
+      <div class="top-actions">
+        <span id="online" class="pill">⚪ Offline</span>
+        <button id="btnFx" class="pill btn" title="Bật/tắt hiệu ứng ánh sáng (bloom) và hạt">✨ Đồ hoạ cao</button>
+        <button id="btnMusic" class="pill btn">🎵 Bật nhạc</button>
+      </div>
+    </header>
+
+    <!-- ===== Chế độ bản đồ ===== -->
+    <aside id="overviewPanel" class="panel left">
+      <h3>Góc nhìn</h3>
+      <div class="grid2">
+        <button data-preset="overview">🗺️ Toàn cảnh</button>
+        <button data-preset="top">⬇️ Nhìn từ trên</button>
+        <button data-preset="altar">💒 Từ lễ đài</button>
+        <button data-preset="stage">🎤 Từ sân khấu</button>
+      </div>
+      <h3>Khu vực</h3>
+      <div id="zoneList"></div>
+      <button id="btnJoin" class="primary big">🎉 Tham dự đám cưới</button>
+      <p class="hint">Kéo để xoay · Cuộn/chụm để zoom · Bấm vào khu vực để xem chi tiết</p>
+    </aside>
+
+    <aside id="zoneDetail" class="panel right hidden">
+      <div class="zd-head">
+        <span id="zdIcon"></span>
+        <div>
+          <h2 id="zdName"></h2>
+          <span id="zdCount" class="muted"></span>
+        </div>
+      </div>
+      <p id="zdDesc"></p>
+      <div class="col">
+        <button id="zdEnter" class="primary">🚶 Vào khu này</button>
+        <button id="zdView">👀 Xem từ khu này</button>
+        <button id="zdClose" class="ghost">Bỏ chọn</button>
+      </div>
+    </aside>
+
+    <!-- ===== Thiệp mời / tạo nhân vật ===== -->
+    <div id="joinModal" class="modal hidden">
+      <form class="card" id="joinForm">
+        <div class="invite">
+          <span class="script big" id="inviteNames"></span>
+          <p class="muted" id="inviteText"></p>
+        </div>
+        <label>Tên hiển thị *
+          <input id="jName" maxlength="20" required placeholder="VD: Tuấn Anh" autocomplete="nickname" />
+        </label>
+        <label>Bạn là
+          <select id="jSub">
+            <option>Nhà trai</option><option>Nhà gái</option><option>Bạn chú rể</option>
+            <option>Bạn cô dâu</option><option>Đồng nghiệp</option><option>Khách mời</option>
+          </select>
+        </label>
+        <span class="lbl">Trang phục</span>
+        <div class="seg" id="jOutfit"></div>
+        <span class="lbl">Màu trang phục</span>
+        <div class="swatches" id="jColor"></div>
+        <span class="lbl">Màu da</span>
+        <div class="swatches" id="jSkin"></div>
+        <label>Vào khu
+          <select id="jZone"></select>
+        </label>
+        <div class="row end">
+          <button type="button" class="ghost" id="jCancel">Huỷ</button>
+          <button class="primary" type="submit">💃 Nhảy vào tiệc</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ===== HUD khi đang dự tiệc ===== -->
+    <div id="hud" class="hidden">
+      <div id="zoneBadge"></div>
+      <div id="heartCount" class="hidden" title="Tìm trái tim vàng ẩn quanh tiệc cưới"></div>
+      <div id="chatLog"></div>
+      <form id="chatForm">
+        <input id="chatInput" maxlength="120" placeholder="Enter để chat với mọi người trong khu..." autocomplete="off" />
+      </form>
+      <div id="prompt" class="hidden"></div>
+      <div id="actionBar"></div>
+      <div id="emoteBar"></div>
+      <div id="socialMenu" class="hidden"></div>
+      <div id="hudActions">
+        <button id="hGift">💌 Mừng cưới</button>
+        <button id="hBook">📖 Sổ lưu bút</button>
+        <button id="hZone">🧭 Đổi khu</button>
+        <button id="hView">🎥 Góc nhìn</button>
+        <button id="hBubble">💬 Ẩn chat</button>
+        <button id="hLeave" class="danger">🚪 Rời</button>
+      </div>
+      <div id="zoneMenu" class="popover hidden"></div>
+      <div id="help">WASD/↑↓←→ đi · Shift chạy · Space nhảy · 1–9 biểu cảm · 0 dừng · E/R tương tác (xích đu, piano, đài phun nước, xe hoa, cún...) · Tìm 10 trái tim vàng ẩn · F pháo hoa · G tung hoa · L đèn trời · U bóng bay · P chụp ảnh · Bấm vào khách khác để giao lưu · Kéo chuột xoay camera · V đổi góc nhìn · Enter chat</div>
+      <div id="joystick"><div id="knob"></div></div>
+      <button id="btnJump" class="touch-only">⤒</button>
+    </div>
+
+    <!-- ===== Mừng cưới ===== -->
+    <div id="giftModal" class="modal hidden">
+      <form class="card" id="giftForm">
+        <h2>💌 Gửi lời chúc mừng</h2>
+        <textarea id="gText" maxlength="300" rows="4" required placeholder="Chúc hai bạn trăm năm hạnh phúc, sớm có tin vui..."></textarea>
+        <label class="check"><input type="checkbox" id="gEnvelope" checked /> Kèm phong bì mừng cưới 🧧</label>
+        <div id="bankInfo" class="bank hidden"></div>
+        <div class="row end">
+          <button type="button" class="ghost" data-close>Đóng</button>
+          <button class="primary">Gửi lời chúc</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="bookModal" class="modal hidden">
+      <div class="card wide">
+        <h2>📖 Sổ lưu bút</h2>
+        <div id="bookList"></div>
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
+          <button class="primary" id="bookWrite">✍️ Viết lời chúc</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="photoModal" class="modal hidden">
+      <div class="card wide photo-card">
+        <h2>📸 Ảnh kỷ niệm của bạn</h2>
+        <img id="photoImg" alt="Ảnh chụp trong đám cưới" />
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
+          <button id="photoAgain">🔁 Chụp lại</button>
+          <a id="photoDl" class="btn-link primary" download="anh-cuoi.jpg">⬇️ Tải ảnh</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="program" title="Chương trình đám cưới – mọi người cùng xem"></div>
+    <div id="toasts"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
