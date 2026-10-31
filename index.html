@@ -119,6 +119,7 @@
         <button id="hLucky">🎁 Bốc thăm</button>
         <button id="hBoard">🏆 Bảng vàng</button>
         <button id="hInvite">📤 Mời bạn bè</button>
+        <button id="hVoiceDiag">📶 Tình trạng voice</button>
         <button id="hVoiceLeave">🎧 Thoát voice</button>
         <button id="hZone">🧭 Đổi khu</button>
         <button id="hView">🎥 Góc nhìn</button>
@@ -179,6 +180,17 @@
         <div class="row end">
           <button class="ghost" id="micListen">🎧 Chỉ nghe</button>
           <button class="primary" id="micAllow">🎙️ Cho phép micro</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="diagModal" class="modal hidden">
+      <div class="card">
+        <h2>📶 Tình trạng voice</h2>
+        <div id="diagBody"></div>
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
+          <button class="primary" id="diagRefresh">🔄 Kiểm tra lại</button>
         </div>
       </div>
     </div>

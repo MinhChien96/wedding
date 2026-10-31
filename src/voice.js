@@ -9,9 +9,12 @@ import { ref, child, push, set, remove, onValue, onChildAdded, onDisconnect } fr
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 export class Voice {
-  constructor({ net, iceServers, range = 15, maxPeers = 8, maxListeners = 14, getPos, myPos }) {
+  constructor({ net, iceServers, turnUrl = '', range = 15, maxPeers = 8, maxListeners = 14, getPos, myPos }) {
     this.net = net;
     this.iceServers = iceServers;
+    this.turnUrl = turnUrl;
+    this.hasTurn = iceServers.some((s) => [].concat(s.urls).some((u) => String(u).startsWith('turn')));
+    this.onFail = null; // (id) => void : không kết nối được với ai đó
     this.range = range;
     this.maxPeers = maxPeers;
     this.maxListeners = maxListeners;
@@ -73,6 +76,14 @@ export class Voice {
     this.hasMic = !!stream;
     this.micOn = !!stream;
     this.localLevel = stream ? this.makeAnalyser(stream) : null;
+    // Lấy máy chủ TURN (Metered) để kết nối được cả khi mạng 4G chặn kết nối trực tiếp
+    if (this.turnUrl && !this.turnLoaded) {
+      try {
+        const list = await (await fetch(this.turnUrl)).json();
+        if (Array.isArray(list) && list.length) { this.iceServers = [...this.iceServers, ...list]; this.hasTurn = true; }
+        this.turnLoaded = true;
+      } catch (e) { console.warn('TURN fetch failed', e); }
+    }
     this.id = this.net.id;
     this.joined = true;
     const me = this.r(`voice/${this.id}`);
@@ -172,6 +183,7 @@ export class Voice {
     pc.ontrack = (e) => this.attach(link, e.streams[0] || new MediaStream([e.track]));
     pc.onconnectionstatechange = () => {
       if (['failed', 'closed'].includes(pc.connectionState)) {
+        if (pc.connectionState === 'failed') this.onFail?.(id);
         this.cooldown.set(id, performance.now() + 6000);
         this.drop(id);
       }
@@ -278,6 +290,32 @@ export class Voice {
       }
     }
     el.play().catch(() => {});
+  }
+
+  // iOS chỉ cho phát âm thanh sau thao tác chạm → gọi lại play() mỗi lần người dùng chạm màn hình
+  unlockAudio() {
+    if (!this.joined) return;
+    this.ctx?.resume();
+    for (const l of this.links.values()) if (l.el && l.el.paused) l.el.play().catch(() => {});
+  }
+
+  // Thông tin chẩn đoán: trạng thái kết nối, kiểu đường truyền, mức âm nhận được
+  async diagnose() {
+    const rows = [];
+    for (const [id, l] of this.links) {
+      let route = '';
+      try {
+        const stats = await l.pc.getStats();
+        let pair = null;
+        stats.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pair = stats.get(r.selectedCandidatePairId); });
+        if (!pair) stats.forEach((r) => { if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded') pair = r; });
+        const rc = pair && stats.get(pair.remoteCandidateId);
+        const lc = pair && stats.get(pair.localCandidateId);
+        if (rc || lc) route = (rc?.candidateType === 'relay' || lc?.candidateType === 'relay') ? 'relay' : 'direct';
+      } catch { /* bỏ qua */ }
+      rows.push({ id, state: l.pc.connectionState, ice: l.pc.iceConnectionState, route, level: this.level(l.level), audio: !!l.el, paused: l.el?.paused, gain: l.gain ? l.gain.gain.value : (l.el && !l.el.muted ? 1 : 0), mic: !!this.members.get(id)?.mic });
+    }
+    return { members: [...this.members.keys()], rows, myLevel: this.level(this.localLevel), micOn: this.micOn, hasMic: this.hasMic, hasTurn: this.hasTurn, ctx: this.ctx?.state };
   }
 
   setSinging(on) {

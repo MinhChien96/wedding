@@ -1646,6 +1646,7 @@ async function init() {
   const voice = new Voice({
     net,
     iceServers: VOICE.iceServers,
+    turnUrl: VOICE.turnUrl,
     range: VOICE.range,
     maxPeers: VOICE.maxPeers,
     getPos: (id) => state.peers.get(id)?.av.root.position,
@@ -1781,6 +1782,37 @@ async function init() {
     toast(voice.micOn ? '🎙️ Đã bật mic' : '🔇 Đã tắt mic', 1800);
   });
   $('#hVoiceLeave').addEventListener('click', () => { voice.leave(); toast('Đã thoát voice chat'); });
+  addEventListener('pointerdown', () => voice.unlockAudio(), { passive: true });
+  const failWarned = new Set();
+  voice.onFail = (id) => {
+    if (failWarned.has(id)) return;
+    failWarned.add(id);
+    const p = state.peers.get(id);
+    toast(`📶 Không kết nối được voice với <b>${esc(p?.name || 'một người')}</b>${voice.hasTurn ? ' (mạng không ổn định)' : ' · mạng di động đang chặn kết nối trực tiếp, cần bật máy chủ TURN'}`, 6500);
+  };
+  // Bảng chẩn đoán voice
+  const STATE_VI = { new: 'mới', connecting: '⏳ đang kết nối', connected: '✅ đã kết nối', disconnected: '⚠️ mất kết nối', failed: '❌ thất bại', closed: 'đã đóng' };
+  async function renderDiag() {
+    const b = $('#diagBody');
+    if (!voice.joined) { b.innerHTML = '<p class="muted">Bạn chưa bật voice. Bấm nút 🎧 để bật.</p>'; return; }
+    const d = await voice.diagnose();
+    const bar = (v) => `<span class="lvl"><i style="width:${Math.min(100, Math.round(v * 600))}%"></i></span>`;
+    const me = state.me?.pos;
+    const others = d.members.map((id) => {
+      const p = state.peers.get(id);
+      const r = d.rows.find((x) => x.id === id);
+      const dist = p && me ? Math.round(Math.hypot(p.av.root.position.x - me.x, p.av.root.position.z - me.z)) : '?';
+      const status = r ? `${STATE_VI[r.state] || r.state}${r.route ? ` · ${r.route === 'relay' ? 'qua TURN' : 'trực tiếp'}` : ''}${r.paused ? ' · ⏸ chạm màn hình để phát' : ''}` : (dist !== '?' && dist > VOICE.range ? '📏 ở xa, chưa kết nối' : '⏳ chờ kết nối');
+      return `<div class="diag-row"><b>${esc(p?.name || 'Khách')}</b><small>${dist}m · ${r?.mic ?? false ? '🎙️' : '🔇'} · ${status}</small>${r ? bar(r.level) : ''}</div>`;
+    }).join('');
+    b.innerHTML = `
+      <div class="diag-row"><b>Micro của bạn</b><small>${d.hasMic ? (d.micOn ? '🎙️ đang bật – nói thử để xem thanh mức âm' : '🔇 đang tắt') : '🎧 chỉ nghe'} · âm thanh: ${d.ctx}</small>${d.hasMic ? bar(d.myLevel) : ''}</div>
+      <p class="muted">Máy chủ TURN: ${d.hasTurn ? '✅ có' : '❌ chưa có (mạng 4G có thể không kết nối được)'} · Người đang bật voice: ${d.members.length}</p>
+      ${others || '<p class="muted">Chưa có ai khác bật voice.</p>'}`;
+  }
+  $('#hVoiceDiag').addEventListener('click', () => { closeMenu(); openModal('#diagModal'); renderDiag(); });
+  $('#diagRefresh').addEventListener('click', renderDiag);
+  setInterval(() => { if (!$('#diagModal').classList.contains('hidden')) renderDiag(); }, 700);
   // Cầm mic sân khấu: cả tiệc (đang bật voice) đều nghe, không phụ thuộc khoảng cách
   function stageMic() {
     if (!voice.joined || !voice.hasMic) {

@@ -86,4 +86,7 @@ export const VOICE = {
   iceServers: [
     { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
   ],
+  // Máy chủ TURN miễn phí của Metered (Open Relay): đăng ký metered.ca → TURN Server → copy link
+  // "https://<tên-app>.metered.live/api/v1/turn/credentials?apiKey=<API key>" dán vào đây.
+  turnUrl: '',
 };

@@ -424,3 +424,9 @@ body:has(#hVoice.on) #hVoiceLeave, body:has(#hVoice.muted) #hVoiceLeave, body:ha
 .mic-help ol { margin: 6px 0 4px; padding-left: 20px; }
 .mic-help li { margin: 3px 0; }
 .mic-help .row { margin-top: 6px; }
+.diag-row { background: #fff; border-radius: 12px; padding: 8px 12px; margin: 6px 0; display: flex; flex-direction: column; gap: 3px; }
+.diag-row small { color: var(--muted); font-size: 12.5px; }
+.lvl { display: block; height: 6px; background: #f1e6ec; border-radius: 99px; overflow: hidden; }
+.lvl i { display: block; height: 100%; background: linear-gradient(90deg, #2fb36b, #ffd166, #ff6f91); transition: width 0.15s; }
+#hVoiceDiag { display: none; }
+body:has(#hVoice.on) #hVoiceDiag, body:has(#hVoice.muted) #hVoiceDiag, body:has(#hVoice.stage) #hVoiceDiag { display: block; }
