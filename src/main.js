@@ -1307,27 +1307,51 @@ async function init() {
   }
   $('#btnJump').addEventListener('pointerdown', (e) => { e.preventDefault(); jump(); });
 
-  // Kéo để xoay camera khi đang chơi
+  // Kéo để xoay camera khi đang chơi · chụm 2 ngón (điện thoại) hoặc lăn chuột để zoom
   let drag = null;
+  const touches = new Map(); // pointerId -> {x, y} cho các ngón đang chạm canvas
+  let pinch = null;
+  const pinchDist = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+  const setCamDist = (d) => { state.camDist = Math.min(14, Math.max(2.5, d)); };
   canvas.addEventListener('pointerdown', (e) => {
     if (state.mode !== 'play') return;
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY };
-    canvas.setPointerCapture(e.pointerId);
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { canvas.setPointerCapture(e.pointerId); } catch { /* sự kiện giả lập */ }
+    if (touches.size === 2) {
+      // Ngón thứ hai chạm: chuyển sang chế độ chụm để zoom, dừng xoay camera
+      drag = null;
+      downAt = null;
+      pinch = { d: pinchDist(), cam: state.camDist };
+      return;
+    }
+    if (touches.size === 1) drag = { id: e.pointerId, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY };
   });
   canvas.addEventListener('pointermove', (e) => {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && touches.size === 2) {
+      const d = pinchDist();
+      if (d > 10) setCamDist(pinch.cam * (pinch.d / d));
+      return;
+    }
     if (!drag || drag.id !== e.pointerId) return;
     state.camYaw -= (e.clientX - drag.x) * 0.006;
     state.camPitch = Math.min(1.2, Math.max(-0.4, state.camPitch + (e.clientY - drag.y) * 0.004));
     drag.x = e.clientX;
     drag.y = e.clientY;
   });
-  const endDrag = (e) => { if (drag && drag.id === e.pointerId) drag = null; };
+  const endDrag = (e) => {
+    touches.delete(e.pointerId);
+    if (touches.size < 2) pinch = null;
+    if (drag && drag.id === e.pointerId) drag = null;
+  };
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('wheel', (e) => {
     if (state.mode !== 'play') return;
-    state.camDist = Math.min(14, Math.max(2.5, state.camDist + e.deltaY * 0.01));
+    setCamDist(state.camDist + e.deltaY * 0.01);
   }, { passive: true });
+  // Safari iOS: chặn cử chỉ zoom cả trang để chụm 2 ngón chỉ zoom camera
+  for (const ev of ['gesturestart', 'gesturechange']) document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
 
   // Joystick cảm ứng
   const joy = $('#joystick');
