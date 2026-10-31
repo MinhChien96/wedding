@@ -87,13 +87,24 @@ export class Voice {
     this.id = this.net.id;
     this.joined = true;
     const me = this.r(`voice/${this.id}`);
-    await onDisconnect(me).remove();
-    await onDisconnect(this.r(`rtc/${this.id}`)).remove();
-    await set(me, { mic: this.micOn, stage: false });
+    try {
+      await onDisconnect(me).remove();
+      await onDisconnect(this.r(`rtc/${this.id}`)).remove();
+      await set(me, { mic: this.micOn, stage: false });
+    } catch (e) {
+      // Thường do luật Firebase chưa cho phép voice/ và rtc/
+      this.joined = false;
+      this.local?.getTracks().forEach((t) => t.stop());
+      this.local = null;
+      const err = new Error(String(e?.message || e));
+      err.name = /permission/i.test(err.message) ? 'RulesError' : 'JoinError';
+      throw err;
+    }
     this.unsubs.push(onValue(this.r('voice'), (s) => {
       const prevStage = new Set([...this.members].filter(([, v]) => v.stage).map(([k]) => k));
       this.members.clear();
       s.forEach((c) => { if (c.key !== this.id) this.members.set(c.key, c.val() || {}); });
+      this.membersLoaded = true;
       for (const [k, v] of this.members) if (v.stage && !prevStage.has(k)) this.onStage?.(k, true);
       for (const k of prevStage) if (!this.members.get(k)?.stage) this.onStage?.(k, false);
       this.nextManage = 0;
@@ -159,9 +170,22 @@ export class Voice {
   manage(now) {
     const me = this.myPos();
     if (!me) return;
+    // Kết nối quá lâu không thành (mất offer/answer, mạng chặn...) → huỷ và thử lại
+    for (const [id, l] of this.links) {
+      if (l.pc.connectionState !== 'connected' && now - l.born > 12000) {
+        if (now - l.born > 12000 && l.pc.iceConnectionState === 'checking') this.onFail?.(id);
+        this.cooldown.set(id, now + 2500);
+        this.drop(id);
+      }
+    }
+    if (!this.membersLoaded) return;
     const cand = [];
     for (const [id, info] of this.members) {
-      if (!this.wants(id, info)) { if (this.links.has(id)) this.drop(id); continue; }
+      if (!this.wants(id, info)) {
+        // Chưa biết vị trí người đó (chưa tải xong nhân vật) thì giữ kết nối, đừng vội đóng
+        if (this.links.has(id) && this.getPos(id)) this.drop(id);
+        continue;
+      }
       const p = this.getPos(id);
       cand.push({ id, info, d: Math.hypot(p.x - me.x, p.z - me.z) });
     }
@@ -172,12 +196,13 @@ export class Voice {
       if (i >= limit && !c.info.stage) { if (this.links.has(c.id)) this.drop(c.id); return; }
       if (!this.links.has(c.id) && this.id < c.id && (this.cooldown.get(c.id) || 0) < now) this.call(c.id);
     });
-    for (const id of this.links.keys()) if (!this.members.has(id)) this.drop(id);
+    // Chỉ đóng khi người đó đã thật sự rời voice (đã có danh sách và một lúc không còn tên họ)
+    for (const [id, l] of this.links) if (!this.members.has(id) && now - l.born > 5000) this.drop(id);
   }
 
   makeLink(id) {
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-    const link = { id, pc, level: null, el: null, gain: null, speaking: false, lastLoud: 0, pending: [] };
+    const link = { id, pc, level: null, el: null, gain: null, speaking: false, lastLoud: 0, pending: [], born: performance.now() };
     this.links.set(id, link);
     pc.onicecandidate = (e) => { if (e.candidate) this.send(id, { type: 'ice', c: JSON.stringify(e.candidate.toJSON()) }); };
     pc.ontrack = (e) => this.attach(link, e.streams[0] || new MediaStream([e.track]));
@@ -205,8 +230,8 @@ export class Voice {
     const id = m.from;
     let link = this.links.get(id);
     if (m.type === 'offer') {
+      // Luôn nhận lời mời kết nối (danh sách người bật voice có thể chưa tải xong)
       if (link) this.drop(id);
-      if (!this.members.has(id)) return;
       link = this.makeLink(id);
       await link.pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
       const tr = link.pc.getTransceivers()[0];

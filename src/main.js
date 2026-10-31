@@ -1759,13 +1759,22 @@ async function init() {
       afterJoin(voice.joined ? await voice.upgrade(stream) : await voice.join(stream));
     }).catch((err) => {
       console.warn('mic', err);
+      if (err.name === 'RulesError' || err.name === 'JoinError') {
+        $('#micModal').classList.add('hidden');
+        toast(err.name === 'RulesError'
+          ? '⚠️ Firebase chưa cho phép voice: cần dán lại <b>database.rules.json</b> vào Firebase Console → Rules → Publish'
+          : '⚠️ Chưa vào được voice, thử lại sau nhé', 8000);
+        return;
+      }
       showMicHelp(err);
     });
   });
   $('#micListen').addEventListener('click', async () => {
     $('#micModal').classList.add('hidden');
     pendingStage = false;
-    afterJoin(await voice.join(null));
+    try { afterJoin(await voice.join(null)); } catch (err) {
+      toast(err.name === 'RulesError' ? '⚠️ Firebase chưa cho phép voice: cần dán lại <b>database.rules.json</b> vào Firebase Console → Rules → Publish' : '⚠️ Chưa vào được voice, thử lại sau nhé', 8000);
+    }
   });
   $('#micHelp').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-mic]');
