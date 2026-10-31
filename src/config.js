@@ -22,10 +22,10 @@ export const WEDDING = {
   // Để trống account nếu không muốn hiển thị.
   // bankId: mã ngân hàng cho mã VietQR (ví dụ 'VCB', 'TCB', 'MB', 'ACB', 'VPB'...) – có thì hiện mã QR chuyển khoản kèm số tiền.
   gift: {
-    bank: '',
-    bankId: '',
-    account: '',
-    owner: '',
+    bank: 'TPBank',
+    bankId: '970423', // mã BIN của TPBank cho VietQR
+    account: '0363605867',
+    owner: 'NGUYEN MINH CHIEN',
   },
 };
 
