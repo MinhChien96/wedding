@@ -37,6 +37,12 @@ export class Net {
     this.zone = 'welcome';
     this.last = { chat: 0, wish: 0, fx: 0 };
     this.started = false;
+    // id cố định theo thiết bị: dùng cho thả tim lời chúc, bảng xếp hạng (mỗi máy một dòng)
+    try {
+      this.uid = localStorage.getItem('wedding-uid');
+      if (!this.uid) { this.uid = `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`; localStorage.setItem('wedding-uid', this.uid); }
+    } catch { this.uid = `u${Math.random().toString(36).slice(2, 12)}`; }
+    this.last.react = 0;
   }
 
   on(type, fn) { (this.handlers[type] ||= []).push(fn); }
@@ -87,7 +93,7 @@ export class Net {
     peersSnap.forEach((s) => { known.add(s.key); if (s.key !== this.id) peers.push(s.val()); });
     const wishes = [];
     let lastWish = null;
-    wishesSnap.forEach((s) => { wishes.push(s.val()); lastWish = s.key; });
+    wishesSnap.forEach((s) => { wishes.push({ ...s.val(), k: s.key }); lastWish = s.key; });
     this.emit('welcome', { t: 'welcome', id: this.id, peers, wishes });
 
     // Khách vào / ra
@@ -128,7 +134,19 @@ export class Net {
 
     // Sổ lưu bút: lời chúc mới (kể cả của chính mình, giống server cũ)
     const wq = lastWish ? query(this.r('wishes'), orderByKey(), startAfter(lastWish)) : this.r('wishes');
-    onChildAdded(wq, (s) => this.emit('wish', { t: 'wish', wish: s.val() }));
+    onChildAdded(wq, (s) => this.emit('wish', { t: 'wish', wish: { ...s.val(), k: s.key } }));
+
+    // Lượt thả tim cho từng lời chúc
+    onValue(this.r('likes'), (s) => {
+      const counts = {};
+      const mine = new Set();
+      s.forEach((w) => {
+        let n = 0;
+        w.forEach((u) => { n++; if (u.key === this.uid) mine.add(w.key); });
+        counts[w.key] = n;
+      });
+      this.emit('likes', { counts, mine });
+    });
   }
 
   async writePeer() {
@@ -193,9 +211,49 @@ export class Net {
         });
         break;
       }
+      case 'react': {
+        if (!this.joined || now - this.last.react < 400) return;
+        this.last.react = now;
+        this.pushEvent({ t: 'react', e: clean(m.e, 8) });
+        break;
+      }
+      case 'lucky': {
+        if (!this.joined) return;
+        this.pushEvent({ t: 'lucky', name: clean(m.name, 20), prize: clean(m.prize, 80), big: !!m.big });
+        break;
+      }
       case 'leave': this.leave(); break;
       default:
     }
+  }
+
+  // Thả / bỏ tim một lời chúc
+  like(wishKey, on) {
+    if (!this.online || !wishKey) return;
+    const r = this.r(`likes/${wishKey}/${this.uid}`);
+    (on ? set(r, true) : remove(r)).catch(() => {});
+  }
+
+  // Bảng vàng: mỗi thiết bị một dòng, chỉ ghi đè khi thành tích tốt hơn (better(cũ, mới))
+  async submitScore(board, data, better = () => true) {
+    if (!this.online) return false;
+    const r = this.r(`boards/${board}/${this.uid}`);
+    try {
+      const old = (await get(r)).val();
+      if (old && !better(old, data)) return false;
+      await set(r, compact({ ...data, at: Date.now() }));
+      return true;
+    } catch { return false; }
+  }
+
+  async getBoard(board) {
+    if (!this.online) return null;
+    try {
+      const s = await get(this.r(`boards/${board}`));
+      const rows = [];
+      s.forEach((c) => { rows.push({ ...c.val(), me: c.key === this.uid }); });
+      return rows;
+    } catch { return null; }
   }
 
   join(payload) {

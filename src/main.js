@@ -5,7 +5,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { WEDDING } from './config.js';
+import { WEDDING, QUIZ, LUCKY_PRIZES } from './config.js';
 import { buildVenue, ZONES, zoneAt, zoneById } from './venue.js';
 import { Avatar, OUTFITS, PALETTE, SKIN_TONES, HAIR_COLORS, EMOTES } from './avatar.js';
 import { Net } from './network.js';
@@ -381,6 +381,7 @@ async function init() {
     endPhoto();
     closeSocial();
     net.leave();
+    state.follow = null;
     avatars.delete(state.me.av);
     state.me.av.dispose();
     state.me = null;
@@ -717,7 +718,8 @@ async function init() {
         music.sfx('fanfare');
         fx.confetti(me.pos, 160);
         fx.fireworkShow(me.pos.clone().add(forward(12)).setY(0), 6, 6);
-        toast('🏆 Bạn đã tìm đủ tất cả trái tim vàng! Danh hiệu: <b>Thám tử tình yêu 🕵️💛</b>', 7000);
+        toast('🏆 Bạn đã tìm đủ tất cả trái tim vàng! Danh hiệu: <b>Thám tử tình yêu 🕵️💛</b> · Tên bạn đã lên Bảng vàng', 7000);
+        net.submitScore('hunt', { name: prof.name || 'Khách', sub: prof.sub || '' }, () => false);
         me.av.say('Tìm đủ hết rồi nè! 💛🏆', 5000);
         setEmote('cheer', 3);
       } else {
@@ -868,6 +870,7 @@ async function init() {
     { id: 'dance', label: '💃 Mời nhảy', emote: 'dance', dist: 2 },
     { id: 'hug', label: '🤗 Ôm', emote: 'hug', dist: 1.05 },
     { id: 'photo', label: '📸 Chụp chung', dist: 2.2 },
+    { id: 'follow', label: '🚶 Đi theo', dist: 0 },
   ];
   const socialEl = $('#socialMenu');
   const peerIdOf = (av) => { for (const [id, p] of state.peers) if (p.av === av) return id; return null; };
@@ -902,6 +905,11 @@ async function init() {
     const tp = av.root.position;
     if (me.pos.distanceTo(tp) > 14) { toast('Lại gần hơn chút để giao lưu nha 😊'); return; }
     if (s.id === 'photo') { walkTo(tp, s.dist, () => takePhoto('selfie', av)); return; }
+    if (s.id === 'follow') {
+      state.follow = av;
+      toast(`🚶 Đang đi theo <b>${esc(av.name || 'Khách')}</b> · di chuyển để dừng`);
+      return;
+    }
     const go = () => {
       me.yaw = Math.atan2(tp.x - me.pos.x, tp.z - me.pos.z);
       setEmote(s.emote, s.id === 'dance' ? 10 : 3.5);
@@ -1095,8 +1103,9 @@ async function init() {
     const list = $('#bookList');
     if (!state.wishes.length) { list.innerHTML = '<p class="muted">Chưa có lời chúc nào. Hãy là người đầu tiên! ✍️</p>'; return; }
     list.innerHTML = [...state.wishes].reverse().map((w) => `
-      <div class="wish"><b>${esc(w.name)}</b> <span class="meta">${esc(w.sub || '')} · ${new Date(w.time).toLocaleString('vi-VN')}${w.gift ? ' · 🧧' : ''}</span>
+      <div class="wish">${w.k ? `<button class="like" data-k="${esc(w.k)}">${likeHtml(w.k)}</button>` : ''}<b>${esc(w.name)}</b> <span class="meta">${esc(w.sub || '')} · ${new Date(w.time).toLocaleString('vi-VN')}${w.gift ? ' · 🧧' : ''}</span>
       <p>${esc(w.text)}</p></div>`).join('');
+    updateLikes();
   }
   function onWish(w) {
     state.wishes.push(w);
@@ -1129,18 +1138,19 @@ async function init() {
     zoneMenu.classList.add('hidden');
   });
   $('#hudActions').addEventListener('click', (e) => { if (e.target.closest('button')) closeMenu(); });
+  const closeChat = () => document.body.classList.remove('chat-open');
+  if (isTouch) chatInput.placeholder = 'Nhắn cho mọi người trong khu...';
   $('#hChat').addEventListener('click', () => {
     closeMenu();
-    document.body.classList.add('chat-open');
-    chatInput.focus();
+    document.body.classList.toggle('chat-open');
   });
-  chatInput.addEventListener('blur', () => setTimeout(() => document.body.classList.remove('chat-open'), 150));
-  canvas.addEventListener('pointerdown', closeMenu);
+  canvas.addEventListener('pointerdown', () => { closeMenu(); closeChat(); chatInput.blur(); });
   $('#chatForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const text = chatInput.value.trim();
     chatInput.value = '';
     chatInput.blur();
+    closeChat();
     if (!text) return;
     if (!state.me) return;
     state.me.av.say(text);
@@ -1247,6 +1257,194 @@ async function init() {
       }
       default:
     }
+  });
+
+  // ---------- Thả cảm xúc ----------
+  const REACTIONS = ['😂', '😍', '👏', '🎉', '🥹', '🔥', '😮', '🙏'];
+  for (const e of REACTIONS) {
+    const b = document.createElement('button');
+    b.textContent = e;
+    b.addEventListener('click', () => {
+      if (!state.me) return;
+      fx.emoji(state.me.pos, e);
+      music.sfx('pop', 0.4);
+      net.send({ t: 'react', e });
+    });
+    $('#reactBar').append(b);
+  }
+  net.on('react', (m) => {
+    const p = state.peers.get(m.id);
+    if (p && REACTIONS.includes(m.e)) fx.emoji(p.av.root.position, m.e);
+  });
+
+  // ---------- Đố vui ----------
+  const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const quizBody = $('#quizBody');
+  const quiz = { qs: [], i: 0, score: 0, t0: 0 };
+  const QUIZ_N = Math.min(6, QUIZ.length);
+  function quizStart() {
+    quizBody.innerHTML = `
+      <h2>🧠 Ai hiểu ${esc(WEDDING.groom)} &amp; ${esc(WEDDING.bride)} nhất?</h2>
+      <p class="muted">${QUIZ_N} câu hỏi nhanh. Đúng nhiều nhất, nhanh nhất sẽ đứng đầu Bảng vàng.</p>
+      <div class="row end">
+        <button class="ghost" data-act="board">🏆 Bảng vàng</button>
+        <button class="primary" data-act="start">Bắt đầu</button>
+      </div>`;
+  }
+  function quizQuestion() {
+    const q = quiz.qs[quiz.i];
+    quizBody.innerHTML = `
+      <div class="quiz-top"><span>Câu ${quiz.i + 1}/${QUIZ_N}</span><span>✅ ${quiz.score}</span></div>
+      <div class="quiz-bar"><i style="width:${(quiz.i / QUIZ_N) * 100}%"></i></div>
+      <h3 class="quiz-q">${esc(q.q)}</h3>
+      <div class="quiz-opts">${q.opts.map((o, i) => `<button data-opt="${i}">${esc(o.t)}</button>`).join('')}</div>`;
+  }
+  async function quizFinish() {
+    const ms = performance.now() - quiz.t0;
+    const { score } = quiz;
+    const title = score === QUIZ_N ? 'Tri kỷ của cô dâu chú rể! 💯' : score >= QUIZ_N - 2 ? 'Bạn thân chính hiệu 💖' : score >= QUIZ_N / 2 ? 'Cũng hiểu kha khá đó 😄' : 'Cần tìm hiểu thêm nha 😆';
+    quizBody.innerHTML = `
+      <div class="quiz-result">
+        <div class="big">${score}/${QUIZ_N}</div>
+        <p><b>${title}</b></p>
+        <p class="muted">Thời gian: ${(ms / 1000).toFixed(1)} giây</p>
+        <p class="muted" id="quizSaved"></p>
+      </div>
+      <div class="row end">
+        <button class="ghost" data-act="board">🏆 Bảng vàng</button>
+        <button class="primary" data-act="start">🔁 Chơi lại</button>
+      </div>`;
+    if (score >= QUIZ_N - 1 && state.me) {
+      music.sfx('fanfare');
+      fx.confetti(state.me.pos, 120);
+      setEmote('cheer', 3);
+    } else music.sfx('chime');
+    const saved = await net.submitScore('quiz', { name: prof.name || 'Khách', sub: prof.sub || '', score, total: QUIZ_N, ms: Math.round(ms) },
+      (o, n) => n.score > o.score || (n.score === o.score && n.ms < o.ms));
+    const el = $('#quizSaved');
+    if (el) el.textContent = saved ? '🏆 Đã ghi thành tích mới lên Bảng vàng!' : net.online ? 'Thành tích cũ của bạn vẫn tốt hơn.' : '';
+  }
+  quizBody.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.act === 'start') {
+      quiz.qs = shuffle(QUIZ).slice(0, QUIZ_N).map((q) => ({ q: q.q, opts: shuffle(q.a.map((t, i) => ({ t, ok: i === q.c }))) }));
+      quiz.i = 0;
+      quiz.score = 0;
+      quiz.t0 = performance.now();
+      quizQuestion();
+    } else if (b.dataset.act === 'board') {
+      $('#quizModal').classList.add('hidden');
+      openBoard('quiz');
+    } else if (b.dataset.opt !== undefined && !quizBody.dataset.lock) {
+      quizBody.dataset.lock = '1';
+      const q = quiz.qs[quiz.i];
+      const ok = q.opts[+b.dataset.opt].ok;
+      if (ok) quiz.score++;
+      quizBody.querySelectorAll('[data-opt]').forEach((x) => { if (q.opts[+x.dataset.opt].ok) x.classList.add('right'); });
+      if (!ok) b.classList.add('wrong');
+      music.sfx(ok ? 'chime' : 'pop', 0.6);
+      setTimeout(() => {
+        delete quizBody.dataset.lock;
+        quiz.i++;
+        if (quiz.i < QUIZ_N) quizQuestion(); else quizFinish();
+      }, 900);
+    }
+  });
+  $('#hQuiz').addEventListener('click', () => { quizStart(); openModal('#quizModal'); });
+
+  // ---------- Bốc thăm may mắn ----------
+  const luckyKey = `wedding-lucky-${new Date().toDateString()}`;
+  const luckyText = $('#luckyText');
+  function luckyShow() {
+    const got = store.getItem(luckyKey);
+    luckyText.textContent = got || '🎁';
+    $('#luckyBox').classList.toggle('won', !!got);
+    $('#luckyGo').disabled = !!got;
+    $('#luckyGo').textContent = got ? 'Hẹn bạn ngày mai 😉' : 'Bốc thăm';
+  }
+  $('#hLucky').addEventListener('click', () => { luckyShow(); openModal('#luckyModal'); });
+  $('#luckyGo').addEventListener('click', () => {
+    if (store.getItem(luckyKey) || $('#luckyBox').classList.contains('spin')) return;
+    const total = LUCKY_PRIZES.reduce((a, p) => a + p.w, 0);
+    let r = Math.random() * total;
+    const prize = LUCKY_PRIZES.find((p) => (r -= p.w) < 0) || LUCKY_PRIZES[0];
+    const box = $('#luckyBox');
+    box.classList.add('spin');
+    $('#luckyGo').disabled = true;
+    let i = 0;
+    const timer = setInterval(() => { luckyText.textContent = LUCKY_PRIZES[i++ % LUCKY_PRIZES.length].text; music.sfx('tick', 0.25); }, 90);
+    setTimeout(() => {
+      clearInterval(timer);
+      box.classList.remove('spin');
+      store.setItem(luckyKey, prize.text);
+      luckyShow();
+      if (prize.big) {
+        music.sfx('fanfare');
+        if (state.me) { fx.confetti(state.me.pos, 160); fx.fireworkShow(state.me.pos.clone().add(forward(12)).setY(0), 5, 6); }
+      } else {
+        music.sfx('chime');
+        if (state.me) fx.hearts(state.me.pos, 8);
+      }
+      net.send({ t: 'lucky', name: prof.name || 'Khách', prize: prize.text, big: !!prize.big });
+    }, 2200);
+  });
+  net.on('lucky', (m) => {
+    toast(`🎁 <b>${esc(m.name)}</b> bốc trúng: ${esc(m.prize)}`, m.big ? 6500 : 4000);
+    const p = state.peers.get(m.id);
+    if (m.big && p) fx.fireworkShow(p.av.root.position.clone().setY(0), 3, 5);
+  });
+
+  // ---------- Bảng vàng ----------
+  let boardTab = 'quiz';
+  async function renderBoard() {
+    $('#boardTabs').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.board === boardTab));
+    const list = $('#boardList');
+    list.innerHTML = '<p class="muted">Đang tải...</p>';
+    const tab = boardTab;
+    const rows = await net.getBoard(tab);
+    if (tab !== boardTab) return;
+    if (!rows) { list.innerHTML = '<p class="muted">Cần kết nối mạng để xem Bảng vàng.</p>'; return; }
+    if (tab === 'quiz') rows.sort((a, b) => b.score - a.score || a.ms - b.ms);
+    else rows.sort((a, b) => a.at - b.at);
+    if (!rows.length) {
+      list.innerHTML = `<p class="muted">${tab === 'quiz' ? 'Chưa ai chơi đố vui. Bạn thử làm người đầu tiên nhé!' : 'Chưa ai tìm đủ 10 trái tim vàng. Chúng đang trốn quanh tiệc đó!'}</p>`;
+      return;
+    }
+    const medal = (i) => ['🥇', '🥈', '🥉'][i] || `${i + 1}`;
+    list.innerHTML = rows.slice(0, 30).map((r, i) => `
+      <div class="board-row${r.me ? ' me' : ''}">
+        <span class="rk">${medal(i)}</span>
+        <span class="nm"><b>${esc(r.name || 'Khách')}</b><small>${esc(r.sub || '')}</small></span>
+        <span class="sc">${tab === 'quiz' ? `${r.score}/${r.total} · ${(r.ms / 1000).toFixed(1)}s` : new Date(r.at).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })}</span>
+      </div>`).join('');
+  }
+  function openBoard(tab = 'quiz') { boardTab = tab; openModal('#boardModal'); renderBoard(); }
+  $('#boardTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-board]'); if (b) { boardTab = b.dataset.board; renderBoard(); } });
+  $('#hBoard').addEventListener('click', () => openBoard('quiz'));
+
+  // ---------- Thả tim lời chúc ----------
+  state.likes = { counts: {}, mine: new Set() };
+  const likeHtml = (k) => { const n = state.likes.counts[k] || 0; return `${state.likes.mine.has(k) ? '❤️' : '🤍'}${n ? ` ${n}` : ''}`; };
+  function updateLikes() {
+    document.querySelectorAll('#bookList .like').forEach((b) => {
+      b.innerHTML = likeHtml(b.dataset.k);
+      b.classList.toggle('on', state.likes.mine.has(b.dataset.k));
+    });
+  }
+  net.on('likes', (m) => { state.likes = m; updateLikes(); });
+  $('#bookList').addEventListener('click', (e) => {
+    const b = e.target.closest('.like');
+    if (!b) return;
+    if (!net.online) { toast('Cần kết nối mạng để thả tim'); return; }
+    const k = b.dataset.k;
+    const on = !state.likes.mine.has(k);
+    // cập nhật ngay cho mượt, Firebase sẽ đồng bộ lại
+    if (on) state.likes.mine.add(k); else state.likes.mine.delete(k);
+    state.likes.counts[k] = Math.max(0, (state.likes.counts[k] || 0) + (on ? 1 : -1));
+    updateLikes();
+    if (on) { music.sfx('pop', 0.5); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
+    net.like(k, on);
   });
 
   function addPeer(p) {
@@ -1399,6 +1597,16 @@ async function init() {
     const len = Math.min(1, Math.hypot(ix, iz));
     let moving = len > 0.08;
     const run = !typing && (k.ShiftLeft || k.ShiftRight);
+    // Đi theo một người: tự bám theo, người chơi di chuyển là dừng
+    if (state.follow) {
+      const f = state.follow;
+      if (moving || !f.root.parent) {
+        state.follow = null;
+        if (moving) toast('Đã dừng đi theo');
+      } else if (!state.walkTo && Math.hypot(f.root.position.x - me.pos.x, f.root.position.z - me.pos.z) > 2.4) {
+        state.walkTo = { target: f.root.position, stop: 1.6, cb: () => {}, start: now };
+      }
+    }
     let speed = (run ? 7.5 : 4.2) * len;
     let mx = 0;
     let mz = 0;

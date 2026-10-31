@@ -25,13 +25,30 @@
       "events": {
         "$e": {
           ".write": true,
-          ".validate": "!newData.exists() || (newData.child('t').isString() && (!newData.child('text').exists() || newData.child('text').val().length <= 120))"
+          ".validate": "!newData.exists() || (newData.child('t').isString() && newData.child('t').val().length <= 12 && (!newData.child('text').exists() || newData.child('text').val().length <= 120) && (!newData.child('prize').exists() || newData.child('prize').val().length <= 80))"
         }
       },
       "wishes": {
         "$w": {
           ".write": "!data.exists()",
           ".validate": "newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.child('name').isString() && newData.child('name').val().length <= 20"
+        }
+      },
+      "likes": {
+        "$wish": {
+          "$uid": {
+            ".write": true,
+            ".validate": "newData.isBoolean()"
+          }
+        }
+      },
+      "boards": {
+        "$board": {
+          ".validate": "$board === 'quiz' || $board === 'hunt'",
+          "$uid": {
+            ".write": true,
+            ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 20 && newData.child('at').isNumber() && (!newData.child('score').exists() || (newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 20))"
+          }
         }
       }
     }

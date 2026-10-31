@@ -22,6 +22,12 @@ Web 3D cho khách mời tham dự đám cưới online: mỗi người tạo nh�
 - **Săn trái tim vàng**: 10 trái tim vàng trốn quanh tiệc, tìm đủ để nhận danh hiệu "Thám tử tình yêu".
 - **Chương trình MC**: cứ 2 phút có một tiết mục chung cho mọi người (trao nụ hôn, nâng ly, pháo hoa, điệu nhảy đầu tiên, tung hoa cưới, thả đèn trời), đồng bộ theo giờ thực.
 - **Cô dâu chú rể** đứng ở lễ đài và chào khi bạn lại gần. Có thêm khách ảo đi lại cho đông vui.
+- **Thả cảm xúc**: 8 emoji (😂😍👏🎉🥹🔥😮🙏) bay lên trên đầu nhân vật, mọi người đều thấy. Trên điện thoại bấm 💬 để mở.
+- **Đi theo**: bấm vào khách khác → "🚶 Đi theo" để tự động đi cùng họ, di chuyển là dừng.
+- **Đố vui "Ai hiểu cô dâu chú rể nhất?"**: 6 câu ngẫu nhiên, tính điểm và thời gian. Thêm câu hỏi riêng của hai bạn vào `CUSTOM_QUIZ` trong `src/config.js`.
+- **Bốc thăm may mắn**: mỗi máy 1 lượt/ngày, giải lớn có pháo hoa và báo cho cả tiệc. Sửa giải thưởng trong `LUCKY_PRIZES`.
+- **Bảng vàng**: xếp hạng đố vui và danh sách "Thám tử tình yêu" tìm đủ 10 trái tim vàng.
+- **Thả tim lời chúc** trong sổ lưu bút.
 - **Realtime nhiều người** qua Firebase Realtime Database (không cần server riêng). Nếu không kết nối được, web tự chạy ở chế độ offline.
 
 ## Chạy thử
@@ -47,4 +53,4 @@ Web là site tĩnh (Vite), realtime dùng Firebase Realtime Database nên deploy
 
 - **Vercel**: Import repo → Framework Vite (tự nhận) → Deploy. Build `npm run build`, output `dist`.
 - **Firebase**: cấu hình nằm trong `src/network.js`. Dán nội dung `database.rules.json` vào Firebase Console → Realtime Database → Rules → Publish (thay cho test mode, vốn hết hạn sau 30 ngày).
-- Dữ liệu nằm dưới nhánh `wedding/`: `presence` (người đang mở trang), `peers` (khách đã vào), `st` (vị trí), `events` (chat/hiệu ứng, tự dọn sau 15 giây), `wishes` (sổ lưu bút).
+- Dữ liệu nằm dưới nhánh `wedding/`: `presence` (người đang mở trang), `peers` (khách đã vào), `st` (vị trí), `events` (chat/hiệu ứng/cảm xúc, tự dọn sau 15 giây), `wishes` (sổ lưu bút), `likes` (tim cho lời chúc), `boards` (Bảng vàng).

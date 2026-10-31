@@ -81,6 +81,37 @@ export class Effects {
     }
   }
 
+  // Emoji cảm xúc bay lên trên đầu nhân vật
+  emoji(pos, ch, n = 3) {
+    this.emojiTex ||= new Map();
+    let tex = this.emojiTex.get(ch);
+    if (!tex) {
+      tex = canvasTexture(128, 128, (ctx) => {
+        ctx.font = '100px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ch, 64, 70);
+      });
+      this.emojiTex.set(ch, tex);
+    }
+    for (let i = 0; i < n; i++) {
+      const s = this.sprite(tex, 0xffffff, i ? 0.4 : 0.75);
+      s.position.set(pos.x + (i ? rand(-0.5, 0.5) : 0), pos.y + 2.3, pos.z + (i ? rand(-0.5, 0.5) : 0));
+      const vel = new THREE.Vector3(rand(-0.2, 0.2), i ? 1 + Math.random() * 0.6 : 0.7, rand(-0.2, 0.2));
+      const base = s.scale.x;
+      const delay = i * 0.12;
+      this.add(s, 2.4 + delay, (it, dt) => {
+        const age = it.max - it.life;
+        if (age < delay) { s.visible = false; return; }
+        s.visible = true;
+        s.position.addScaledVector(vel, dt);
+        const k = Math.min(1, (age - delay) * 7);
+        s.scale.setScalar(base * (k < 1 ? k * 1.25 : 1 + Math.sin(age * 9) * 0.04));
+        s.material.opacity = Math.min(1, it.life / 0.7);
+      }, () => s.material.dispose());
+    }
+  }
+
   confetti(pos, n = 140) {
     for (let i = 0; i < n; i++) {
       const m = new THREE.Mesh(this.confGeo, this.confMats[i % this.confMats.length]);

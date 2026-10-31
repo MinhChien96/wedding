@@ -240,7 +240,6 @@ button.round { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-s
   #chatForm { display: none; top: calc(var(--st) + 54px); left: calc(var(--sl) + 8px); bottom: auto; width: calc(100% - 66px - var(--sl) - var(--sr)); z-index: 13; }
   body.chat-open #chatForm { display: block; }
   #chatInput { font-size: 16px; } /* >=16px để iOS không tự zoom */
-  #chatInput::placeholder { color: transparent; }
   #chatLog { top: calc(var(--st) + 92px); bottom: auto; left: calc(var(--sl) + 8px); width: calc(100% - 70px); max-height: 18vh; }
   #chatLog .msg { font-size: 12px; padding: 4px 9px; }
   #chatLog .msg.old { display: none; }
@@ -288,4 +287,62 @@ button.round { width: 42px; height: 42px; padding: 0; border-radius: 50%; font-s
   #knob { left: 21px; top: 21px; }
   #btnJump { bottom: calc(var(--sb) + 120px); }
   #prompt { bottom: calc(var(--sb) + 112px); }
+}
+
+/* ===================== Tính năng giao lưu thêm ===================== */
+/* Thả cảm xúc */
+#reactBar { position: fixed; left: 12px; bottom: 118px; display: flex; gap: 4px; z-index: 9; background: var(--glass); backdrop-filter: blur(10px); padding: 4px; border-radius: 14px; box-shadow: var(--shadow); }
+#reactBar button { border: none; background: transparent; font-size: 20px; padding: 3px 5px; border-radius: 10px; line-height: 1.2; }
+#reactBar button:active { transform: scale(1.35); background: #ffe3ea; }
+#chatLog { bottom: 168px; }
+
+/* Đố vui */
+.quiz-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--muted); }
+.quiz-bar { height: 6px; background: #f3e4ea; border-radius: 99px; overflow: hidden; }
+.quiz-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff6f91, #ff9671); transition: width 0.4s; }
+.quiz-q { margin: 12px 0 6px; font-size: 18px; line-height: 1.4; }
+.quiz-opts { display: grid; gap: 8px; }
+.quiz-opts button { text-align: left; padding: 12px 14px; font-size: 15px; }
+.quiz-opts button.right { background: #e3f9ec; border-color: #2fb36b; color: #146c3e; }
+.quiz-opts button.wrong { background: #ffe5e5; border-color: #e5484d; color: #a3171b; animation: shake 0.35s; }
+@keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.quiz-result { text-align: center; padding: 6px 0; }
+.quiz-result .big { font-size: 56px; font-weight: 800; color: #c75b7a; line-height: 1; }
+.quiz-result p { margin: 6px 0; }
+
+/* Bốc thăm */
+#luckyBox { min-height: 120px; display: grid; place-items: center; text-align: center; padding: 16px; border-radius: 18px; background: linear-gradient(135deg, #fff1f5, #fff7e3); border: 2px dashed #ffb3c6; font-size: 17px; font-weight: 700; line-height: 1.45; }
+#luckyText { font-size: inherit; }
+#luckyBox:not(.won):not(.spin) #luckyText { font-size: 54px; }
+#luckyBox.spin { animation: luckyShake 0.18s infinite; color: var(--muted); }
+#luckyBox.won { border-style: solid; border-color: var(--pink); animation: luckyWin 0.6s cubic-bezier(.2, .9, .3, 1.4); }
+@keyframes luckyShake { 50% { transform: rotate(1deg) scale(1.02); } }
+@keyframes luckyWin { from { transform: scale(0.8); } }
+button:disabled { opacity: 0.55; cursor: default; transform: none; box-shadow: none; }
+
+/* Bảng vàng */
+#boardList { display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow: auto; margin-top: 6px; }
+.board-row { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 12px; padding: 8px 12px; }
+.board-row.me { background: #fff0f4; outline: 2px solid var(--pink-2); }
+.board-row .rk { width: 26px; text-align: center; font-weight: 800; color: var(--muted); font-size: 16px; }
+.board-row .nm { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.board-row .nm b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.board-row .nm small { font-size: 11px; color: var(--muted); }
+.board-row .sc { font-size: 13px; font-weight: 700; color: #c75b7a; white-space: nowrap; }
+
+/* Thả tim lời chúc */
+.wish { position: relative; }
+.wish .like { float: right; margin: -2px -4px 0 8px; padding: 4px 9px; font-size: 13px; border-radius: 999px; background: #fff5f8; }
+.wish .like.on { border-color: var(--pink-2); color: #c75b7a; }
+.wish .like.pulse { animation: likePop 0.4s ease-out; }
+@keyframes likePop { 40% { transform: scale(1.35); } }
+
+@media (max-width: 760px), (max-height: 500px) {
+  /* Điện thoại: thanh cảm xúc chỉ hiện khi bấm 💬, nằm dưới ô chat */
+  #reactBar { display: none; left: calc(var(--sl) + 8px); bottom: auto; top: calc(var(--st) + 100px); z-index: 13; width: calc(100% - 66px - var(--sl) - var(--sr)); justify-content: space-between; gap: 0; overflow-x: auto; scrollbar-width: none; }
+  body.chat-open #reactBar { display: flex; }
+  #reactBar button { font-size: 22px; padding: 4px 3px; flex-shrink: 0; }
+  body.chat-open #chatLog { top: calc(var(--st) + 150px); }
+  #hudActions button { padding: 8px 12px; }
+  .quiz-q { font-size: 17px; }
 }

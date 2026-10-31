@@ -100,6 +100,7 @@
       <div id="zoneBadge"></div>
       <div id="heartCount" class="hidden" title="Tìm trái tim vàng ẩn quanh tiệc cưới"></div>
       <div id="chatLog"></div>
+      <div id="reactBar" aria-label="Thả cảm xúc"></div>
       <form id="chatForm">
         <input id="chatInput" maxlength="120" placeholder="Enter để chat với mọi người trong khu..." autocomplete="off" />
       </form>
@@ -112,6 +113,9 @@
       <div id="hudActions">
         <button id="hGift">💌 Mừng cưới</button>
         <button id="hBook">📖 Sổ lưu bút</button>
+        <button id="hQuiz">🧠 Đố vui</button>
+        <button id="hLucky">🎁 Bốc thăm</button>
+        <button id="hBoard">🏆 Bảng vàng</button>
         <button id="hZone">🧭 Đổi khu</button>
         <button id="hView">🎥 Góc nhìn</button>
         <button id="hBubble">💬 Ẩn chat</button>
@@ -144,6 +148,41 @@
         <div class="row end">
           <button class="ghost" data-close>Đóng</button>
           <button class="primary" id="bookWrite">✍️ Viết lời chúc</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Đố vui ===== -->
+    <div id="quizModal" class="modal hidden">
+      <div class="card">
+        <div id="quizBody"></div>
+      </div>
+    </div>
+
+    <!-- ===== Bốc thăm may mắn ===== -->
+    <div id="luckyModal" class="modal hidden">
+      <div class="card lucky-card">
+        <h2>🎁 Bốc thăm may mắn</h2>
+        <p class="muted">Mỗi người được bốc 1 lượt mỗi ngày. Giải lớn sẽ được báo cho cả tiệc!</p>
+        <div id="luckyBox"><span id="luckyText">🎁</span></div>
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
+          <button class="primary" id="luckyGo">Bốc thăm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Bảng vàng ===== -->
+    <div id="boardModal" class="modal hidden">
+      <div class="card">
+        <h2>🏆 Bảng vàng</h2>
+        <div class="seg" id="boardTabs">
+          <button data-board="quiz" class="on">🧠 Đố vui</button>
+          <button data-board="hunt">💛 Săn tim vàng</button>
+        </div>
+        <div id="boardList"></div>
+        <div class="row end">
+          <button class="ghost" data-close>Đóng</button>
         </div>
       </div>
     </div>
