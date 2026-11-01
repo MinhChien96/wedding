@@ -317,7 +317,8 @@ async function init() {
         // Chạm vào trái tim trên bản đồ hành trình → mở ảnh chuyến đi
         setRay(e);
         const hit = raycaster.intersectObjects(tripMap3d.hearts)[0];
-        if (hit) tripMap.open(hit.object.userData.trip);
+        // Chỉ mở thư viện ảnh (không mở kèm bản đồ lớn phía sau)
+        if (hit) tripMap.openTrip(hit.object.userData.trip);
       }
     }
   });
@@ -1550,7 +1551,7 @@ async function init() {
   // Đứng trước bức tường: mở bản đồ phóng to được, hoặc xem ảnh lần lượt từ chuyến đầu tiên
   INTERACTS.push({
     x: tripMap3d.front.x, z: tripMap3d.front.z, r: tripMap3d.front.r,
-    actions: [{ label: '🔍 Xem bản đồ lớn', run: () => tripMap.open() }, { label: '📸 Xem ảnh từ chuyến đầu', run: () => tripMap.open(0) }],
+    actions: [{ label: '🔍 Xem bản đồ lớn', run: () => tripMap.open() }, { label: '📸 Xem ảnh từ chuyến đầu', run: () => tripMap.openTrip(0) }],
   });
 
   // ---------- Bàn tiệc: thực đơn, nâng ly cả bàn, gắp món ----------
