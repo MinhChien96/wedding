@@ -90,3 +90,28 @@ export const VOICE = {
   // "https://<tên-app>.metered.live/api/v1/turn/credentials?apiKey=<API key>" dán vào đây.
   turnUrl: '',
 };
+
+// ====== Bản đồ hành trình du lịch của hai bạn ======
+// photos: danh sách đường dẫn ảnh, ví dụ ['/trips/hoi-an/1.jpg', '/trips/hoi-an/2.jpg'] (đặt file trong public/trips/...)
+//   Để trống [] → hiện ảnh minh hoạ demo.
+// when: thời gian đi (ví dụ '04/2023'), story: vài dòng kể chuyện. lx/ly: dời nhãn tên trên bản đồ cho khỏi đè nhau.
+// scene: kiểu ảnh demo (mountain, bay, karst, city, beach, cave, citadel, ancient, island, dunes)
+export const TRIPS = [
+  { id: 'moc-chau', name: 'Mộc Châu', lat: 20.85, lon: 104.63, scene: 'mountain', lx: -1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'tam-dao', name: 'Tam Đảo', lat: 21.46, lon: 105.65, scene: 'mountain', lx: 0, ly: -1, when: '', story: '', photos: [] },
+  { id: 'hai-phong', name: 'Hải Phòng', lat: 20.86, lon: 106.68, scene: 'city', lx: 1, ly: 0.9, when: '', story: '', photos: [] },
+  { id: 'ha-long', name: 'Hạ Long', lat: 20.95, lon: 107.08, scene: 'bay', lx: 1, ly: -0.9, when: '', story: '', photos: [] },
+  { id: 'ninh-binh', name: 'Ninh Bình', lat: 20.25, lon: 105.97, scene: 'karst', lx: 1, ly: 0.2, when: '', story: '', photos: [] },
+  { id: 'thanh-hoa', name: 'Thanh Hoá', lat: 19.81, lon: 105.78, scene: 'beach', lx: -1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'nghe-an', name: 'Nghệ An', lat: 18.68, lon: 105.68, scene: 'beach', lx: -1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'ha-tinh', name: 'Hà Tĩnh', lat: 18.34, lon: 105.90, scene: 'beach', lx: 1, ly: 0.2, when: '', story: '', photos: [] },
+  { id: 'quang-binh', name: 'Quảng Bình', lat: 17.47, lon: 106.62, scene: 'cave', lx: 1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'hue', name: 'Huế', lat: 16.46, lon: 107.59, scene: 'citadel', lx: -1, ly: -0.2, when: '', story: '', photos: [] },
+  { id: 'da-nang', name: 'Đà Nẵng', lat: 16.05, lon: 108.21, scene: 'city', lx: 1, ly: -0.3, when: '', story: '', photos: [] },
+  { id: 'hoi-an', name: 'Hội An', lat: 15.88, lon: 108.33, scene: 'ancient', lx: 1, ly: 0.4, when: '', story: '', photos: [] },
+  { id: 'ly-son', name: 'Lý Sơn', lat: 15.38, lon: 109.12, scene: 'island', lx: 1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'nha-trang', name: 'Nha Trang', lat: 12.24, lon: 109.19, scene: 'beach', lx: 1, ly: 0, when: '', story: '', photos: [] },
+  { id: 'mui-ne', name: 'Mũi Né', lat: 10.95, lon: 108.29, scene: 'dunes', lx: 1, ly: -0.3, when: '', story: '', photos: [] },
+  { id: 'phan-thiet', name: 'Phan Thiết', lat: 10.93, lon: 108.10, scene: 'beach', lx: 0.3, ly: 1, when: '', story: '', photos: [] },
+  { id: 'ho-chi-minh', name: 'TP. Hồ Chí Minh', lat: 10.78, lon: 106.70, scene: 'city', lx: -1, ly: 0.2, when: '', story: '', photos: [] },
+];

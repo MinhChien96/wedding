@@ -5,7 +5,9 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { WEDDING, QUIZ, LUCKY_PRIZES, MENU, VOICE } from './config.js';
+import { WEDDING, QUIZ, LUCKY_PRIZES, MENU, VOICE, TRIPS } from './config.js';
+import { initTripMap } from './trips.js';
+import { buildTripMap } from './tripmap3d.js';
 import { Voice } from './voice.js';
 import { buildVenue, ZONES, zoneAt, zoneById } from './venue.js';
 import { Avatar, OUTFITS, PALETTE, SKIN_TONES, HAIR_COLORS, EMOTES } from './avatar.js';
@@ -311,6 +313,12 @@ async function init() {
     } else if (state.mode === 'play' && !state.photo) {
       const av = pickAvatar(e);
       if (av) openSocial(av, e.clientX, e.clientY);
+      else {
+        // Chạm vào trái tim trên bản đồ hành trình → mở ảnh chuyến đi
+        setRay(e);
+        const hit = raycaster.intersectObjects(tripMap3d.hearts)[0];
+        if (hit) tripMap.open(hit.object.userData.trip);
+      }
     }
   });
 
@@ -1535,6 +1543,16 @@ async function init() {
     }
   });
 
+  // ---------- Bản đồ hành trình du lịch ----------
+  const coupleName = `${WEDDING.groom} & ${WEDDING.bride}`;
+  const tripMap3d = buildTripMap({ scene, venue, trips: TRIPS, couple: coupleName });
+  const tripMap = initTripMap({ trips: TRIPS, couple: coupleName, openModal, sfx: (n) => music.sfx(n, 0.5) });
+  // Ghim trước (ưu tiên khi đứng sát), rồi tới vùng bản đồ chung
+  const openMapAct = { label: '🗺️ Mở bản đồ hành trình', run: () => tripMap.open() };
+  for (const p of tripMap3d.pins) INTERACTS.push({ x: p.pos.x, z: p.pos.z, r: 1.1, actions: [{ label: `📸 Xem ảnh ${p.trip.name}`, run: () => tripMap.open(p.i) }, openMapAct] });
+  INTERACTS.push({ x: tripMap3d.near.x, z: tripMap3d.near.z, r: tripMap3d.near.r, actions: [openMapAct] });
+  $('#hTrips').addEventListener('click', () => { closeMenu(); tripMap.open(); });
+
   // ---------- Bàn tiệc: thực đơn, nâng ly cả bàn, gắp món ----------
   const tableOf = (p) => {
     let best = null;
@@ -2566,6 +2584,7 @@ async function init() {
 
     ambient.update(t, dt, focus);
     fx.update(dt);
+    tripMap3d.update(t, state.me?.pos);
     voice.update(performance.now());
     updateOverlays(t);
     render();

@@ -430,3 +430,64 @@ body:has(#hVoice.on) #hVoiceLeave, body:has(#hVoice.muted) #hVoiceLeave, body:ha
 .lvl i { display: block; height: 100%; background: linear-gradient(90deg, #2fb36b, #ffd166, #ff6f91); transition: width 0.15s; }
 #hVoiceDiag { display: none; }
 body:has(#hVoice.on) #hVoiceDiag, body:has(#hVoice.muted) #hVoiceDiag, body:has(#hVoice.stage) #hVoiceDiag { display: block; }
+
+/* ===================== Bản đồ hành trình ===================== */
+.trip-card { width: min(760px, 96vw); max-height: 94vh; display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.trip-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.trip-head h2 { margin: 0; font-size: 20px; }
+.trip-head p { margin: 2px 0 0; font-size: 12.5px; }
+.trip-head .x { padding: 6px 12px; flex-shrink: 0; }
+.trip-map { position: relative; flex: 1; min-height: 0; height: 68vh; border-radius: 16px; overflow: hidden; background: #cdeaf8; touch-action: none; }
+#tripSvg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; -webkit-user-select: none; }
+#tripSvg .route { fill: none; stroke: #ff6f91; stroke-width: calc(2.5px * var(--k, 1)); stroke-dasharray: calc(8px * var(--k, 1)) calc(7px * var(--k, 1)); stroke-linecap: round; opacity: 0.8; animation: routeMove 2s linear infinite; }
+@keyframes routeMove { to { stroke-dashoffset: -30; } }
+#tripSvg .isl circle { fill: #f7efe1; stroke: #e7a9b9; stroke-width: 1; }
+#tripSvg .isl-t { font: 700 15px "Be Vietnam Pro", system-ui, sans-serif; fill: #1f4f6e; text-anchor: middle; paint-order: stroke; stroke: rgba(255,255,255,0.8); stroke-width: 3px; }
+#tripSvg .isl-t.sub { font-weight: 600; font-size: 13px; }
+#tripSvg .sea-t { font: 800 22px "Be Vietnam Pro", system-ui, sans-serif; fill: rgba(31,79,110,0.35); text-anchor: middle; letter-spacing: 0.3em; }
+#tripSvg .pin { cursor: pointer; }
+#tripSvg .pin .hit { fill: transparent; }
+#tripSvg .pin .heart { fill: #ff4d7a; stroke: #fff; stroke-width: 1.6; filter: drop-shadow(0 2px 2px rgba(150, 30, 70, 0.35)); transition: transform 0.2s; }
+#tripSvg .pin text { font: 700 14px "Be Vietnam Pro", system-ui, sans-serif; fill: #8a2f4f; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+#tripSvg .pin.active .heart { fill: #ff9f1c; }
+#tripSvg .pin:hover .heart { transform: translate(0, 2px) scale(1.5); }
+.zoom-ctl { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.zoom-ctl button { width: 38px; height: 38px; padding: 0; border-radius: 12px; font-size: 20px; font-weight: 700; background: rgba(255,255,255,0.92); }
+.trip-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.trip-chips::-webkit-scrollbar { display: none; }
+.trip-chips button { flex-shrink: 0; padding: 6px 12px; font-size: 13px; border-radius: 999px; white-space: nowrap; }
+
+.gallery { position: fixed; inset: 0; z-index: 70; background: rgba(20, 10, 25, 0.92); display: flex; flex-direction: column; color: #fff; padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 8px; }
+.gallery.hidden { display: none; }
+.g-top { display: flex; justify-content: space-between; align-items: center; }
+.g-top b { font-size: 19px; }
+.g-top small { opacity: 0.75; font-size: 14px; }
+.g-x { background: rgba(255,255,255,0.15); color: #fff; border: none; border-radius: 50%; width: 40px; height: 40px; padding: 0; font-size: 18px; }
+.g-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; touch-action: pan-y; }
+.g-stage img { max-width: 100%; max-height: 100%; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); user-select: none; -webkit-user-drag: none; }
+.g-stage img.in { animation: gIn 0.35s ease-out; }
+@keyframes gIn { from { opacity: 0; transform: scale(0.97); } }
+.g-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; padding: 0; border-radius: 50%; border: none; background: rgba(255,255,255,0.2); color: #fff; font-size: 28px; line-height: 1; }
+.g-nav.prev { left: 6px; }
+.g-nav.next { right: 6px; }
+.g-dots { display: flex; justify-content: center; gap: 6px; }
+.g-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.35); }
+.g-dots i.on { background: #ff8fab; width: 18px; border-radius: 4px; }
+.g-story { margin: 0 auto; max-width: 640px; text-align: center; font-size: 15px; line-height: 1.5; opacity: 0.92; }
+.g-story.hidden { display: none; }
+.g-trips { display: flex; justify-content: center; gap: 10px; }
+.g-trips .ghost { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.25); }
+@media (max-width: 760px) {
+  #tripModal .card.trip-card { padding: 10px; width: 100vw; max-height: 100%; height: 100%; border-radius: 0; }
+  .trip-map { height: auto; }
+}
+#tripModal { z-index: 75; }
+.gallery { z-index: 80; }
+.zoom-ctl { top: 10px; bottom: auto; }
+@media (max-width: 760px) {
+  #tripModal { padding: 0; }
+  #tripModal .card.trip-card { width: 100%; height: 100%; max-width: none; padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px); }
+  .trip-head h2 { font-size: 17px; }
+  .trip-head p { font-size: 11.5px; }
+}
+.gallery { background: rgba(20, 10, 25, 0.97); backdrop-filter: blur(6px); }

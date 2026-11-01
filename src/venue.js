@@ -753,7 +753,8 @@ export function buildVenue(scene) {
     ctx.fillText('Love Bar', w / 2, 115);
   });
   picture(barTex, 3.2, 1, 43.7, 2.9, 30, -Math.PI / 2, 1.9);
-  for (const [x, z] of [[25, 24], [30, 28.5], [25, 33.5], [34, 34], [35, 23]]) {
+  // (nhường chỗ cho bản đồ hành trình ở giữa khu)
+  for (const [x, z] of [[25, 24], [35, 23], [37.6, 36], [21.2, 30.5], [21.2, 36.5]]) {
     put(new THREE.CylinderGeometry(0.45, 0.45, 0.04, 20), mat('#ffffff'), x, 1.1, z);
     put(new THREE.CylinderGeometry(0.04, 0.04, 1.1, 8), mat('#c9a46a', { metalness: 0.7, roughness: 0.3 }), x, 0.55, z);
     put(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 16), mat('#c9a46a', { metalness: 0.7, roughness: 0.3 }), x, 0.02, z);
