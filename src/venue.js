@@ -29,8 +29,13 @@ export const ZONES = [
   },
   {
     id: 'party', icon: '🎶', name: 'Sân khấu & Sàn nhảy', color: '#c3a6ff',
-    desc: 'Sân khấu có đàn piano, sàn nhảy LED, hồ thiên nga và quầy bar. Bấm phím 3, 5 để quẩy!',
-    rect: [16, 47, -15, 41], spawn: [31, 20], view: { p: [31, 2, 22], t: [31, 3, -12] },
+    desc: 'Sân khấu có đàn piano, sàn nhảy LED và hồ thiên nga. Bấm phím 3, 5 để quẩy!',
+    rect: [16, 47, -15, 24], spawn: [31, 20], view: { p: [31, 2, 22], t: [31, 3, -12] },
+  },
+  {
+    id: 'memory', icon: '🗺️', name: 'Góc kỷ niệm', color: '#ffb4a2',
+    desc: 'Bức tường bản đồ hành trình của hai bạn: chạm vào trái tim để xem ảnh từng chuyến đi. Bên cạnh là Love Bar.',
+    rect: [16, 47, 24, 41], spawn: [27, 28], view: { p: [27, 3.2, 27], t: [27, 4.2, 40] },
   },
 ];
 

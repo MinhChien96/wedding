@@ -218,6 +218,10 @@ export function initTripMap({ trips, couple, openModal, sfx, onOpenTrip }) {
       <div class="trip-chips">${trips.map((t, i) => `<button data-trip="${i}">${esc(t.name)}</button>`).join('')}</div>
     </div>`;
   document.body.append(modal);
+  // Bảng được tạo sau khi web khởi động → tự gắn nút đóng & chạm nền để đóng
+  const closeModal = () => modal.classList.add('hidden');
+  modal.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeModal));
+  modal.addEventListener('pointerdown', (e) => { if (e.target === modal) closeModal(); });
 
   // ----- Thư viện ảnh -----
   const gal = document.createElement('div');

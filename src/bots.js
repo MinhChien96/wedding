@@ -11,6 +11,7 @@ const LINES = {
   banquet: ['Zô zô zô! 🍻', 'Một hai ba dô!', 'Món này ngon ghê', 'Bàn mình đủ người chưa?', 'Chúc sớm có em bé nha 👶', 'Bánh cưới đẹp quá 🍰'],
   photo: ['Chụp chung tấm nè 📸', 'Góc này lên hình đẹp ghê', 'Ai cầm máy giùm cái', 'Cười lên nào 😁'],
   party: ['Quẩy lên nào! 🕺', 'Bài này hay quá', 'DJ ơi cho bài nữa!', 'Ai lên hát đi 🎤', 'Bắn pháo hoa đi! 🎆'],
+  memory: ['Hai bạn đi nhiều nơi ghê 😍', 'Hội An đẹp quá trời', 'Lần sau cho mình đi ké với 😆', 'Chạm vào trái tim xem ảnh nè', 'Ghé Love Bar làm ly không? 🍹'],
 };
 const ACTS = {
   welcome: ['wave', 'idle', 'clap', 'bow'],
@@ -18,6 +19,7 @@ const ACTS = {
   banquet: ['toast', 'clap', 'idle', 'toast'],
   photo: ['heart', 'wave', 'cheer', 'selfie', 'selfie', 'kiss'],
   party: ['dance', 'dance2', 'cheer', 'dance'],
+  memory: ['idle', 'heart', 'selfie', 'wave', 'idle'],
 };
 const REPLIES = {
   wave: ['Chào bạn! 👋', 'Hi hi 😄', 'Chào nha!'],

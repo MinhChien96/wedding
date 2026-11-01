@@ -7,7 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { WEDDING, QUIZ, LUCKY_PRIZES, MENU, VOICE, TRIPS } from './config.js';
 import { initTripMap } from './trips.js';
-import { buildTripMap } from './tripmap3d.js';
+import { buildTripWall } from './tripmap3d.js';
 import { Voice } from './voice.js';
 import { buildVenue, ZONES, zoneAt, zoneById } from './venue.js';
 import { Avatar, OUTFITS, PALETTE, SKIN_TONES, HAIR_COLORS, EMOTES } from './avatar.js';
@@ -1545,13 +1545,13 @@ async function init() {
 
   // ---------- Bản đồ hành trình du lịch ----------
   const coupleName = `${WEDDING.groom} & ${WEDDING.bride}`;
-  const tripMap3d = buildTripMap({ scene, venue, trips: TRIPS, couple: coupleName });
+  const tripMap3d = buildTripWall({ scene, venue, trips: TRIPS, couple: coupleName });
   const tripMap = initTripMap({ trips: TRIPS, couple: coupleName, openModal, sfx: (n) => music.sfx(n, 0.5) });
-  // Ghim trước (ưu tiên khi đứng sát), rồi tới vùng bản đồ chung
-  const openMapAct = { label: '🗺️ Mở bản đồ hành trình', run: () => tripMap.open() };
-  for (const p of tripMap3d.pins) INTERACTS.push({ x: p.pos.x, z: p.pos.z, r: 1.1, actions: [{ label: `📸 Xem ảnh ${p.trip.name}`, run: () => tripMap.open(p.i) }, openMapAct] });
-  INTERACTS.push({ x: tripMap3d.near.x, z: tripMap3d.near.z, r: tripMap3d.near.r, actions: [openMapAct] });
-  $('#hTrips').addEventListener('click', () => { closeMenu(); tripMap.open(); });
+  // Đứng trước bức tường: mở bản đồ phóng to được, hoặc xem ảnh lần lượt từ chuyến đầu tiên
+  INTERACTS.push({
+    x: tripMap3d.front.x, z: tripMap3d.front.z, r: tripMap3d.front.r,
+    actions: [{ label: '🔍 Xem bản đồ lớn', run: () => tripMap.open() }, { label: '📸 Xem ảnh từ chuyến đầu', run: () => tripMap.open(0) }],
+  });
 
   // ---------- Bàn tiệc: thực đơn, nâng ly cả bàn, gắp món ----------
   const tableOf = (p) => {

@@ -1,171 +1,216 @@
-// "Góc kỷ niệm": bản đồ Việt Nam nổi khối trên mặt đất, mỗi nơi hai bạn từng đến là một ghim trái tim.
+// "Góc kỷ niệm": bức tường lớn vẽ bản đồ Việt Nam, mỗi nơi hai bạn từng đến là một trái tim nổi trên tường.
 import * as THREE from 'three';
 import { VN_LAND, HOANG_SA, TRUONG_SA } from './vnmap.js';
 import { canvasTexture, drawHeart, FONT, SCRIPT } from './textures.js';
+import { haversine } from './trips.js';
 
 const K = Math.cos((16 * Math.PI) / 180);
 
-export function buildTripMap({ scene, venue, trips, couple, center = { x: 30, z: 33.6 }, scale = 0.68 }) {
-  const LON_C = 108.6;
-  const LAT_C = 15.8;
-  // Bản đồ quay về phía lối đi chính: khách đứng ở mép gần lối đi nhìn thấy đúng chiều (Bắc ở phía xa, Đông bên phải)
-  const P = (lon, lat) => [center.x - (lon - LON_C) * K * scale, center.z + (lat - LAT_C) * scale];
+export function buildTripWall({ scene, venue, trips, couple, x = 27, z = 40.3, width = 13, height = 8.2 }) {
   const root = new THREE.Group();
   scene.add(root);
+  const PX = 2048;
+  const PY = Math.round((PX * height) / width);
+  const ppm = PX / width;
 
-  // Nền biển bo góc + viền trắng
-  const rounded = (w, h, r) => {
-    const s = new THREE.Shape();
-    const x = -w / 2;
-    const y = -h / 2;
-    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
-    s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
-    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
-    return s;
-  };
-  const BW = 10.4;
-  const BH = 11.6;
-  const rim = new THREE.Mesh(new THREE.ExtrudeGeometry(rounded(BW + 0.5, BH + 0.5, 0.9), { depth: 0.05, bevelEnabled: false }).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#fff7f2', roughness: 0.6 }));
-  rim.position.set(center.x, 0.0, center.z);
-  rim.receiveShadow = true;
-  root.add(rim);
-  const seaTex = canvasTexture(512, 512, (ctx, w, h) => {
-    const g = ctx.createLinearGradient(0, 0, w, h);
-    g.addColorStop(0, '#9fdcf5'); g.addColorStop(1, '#5ab4dc');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 3;
-    for (let i = 0; i < 40; i++) { const x = Math.random() * w; const y = Math.random() * h; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + 12, y - 6, x + 24, y); ctx.stroke(); }
-  });
-  const sea = new THREE.Mesh(new THREE.ExtrudeGeometry(rounded(BW, BH, 0.7), { depth: 0.07, bevelEnabled: false }).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: seaTex, roughness: 0.25, metalness: 0.1 }));
-  sea.position.set(center.x, 0.0, center.z);
-  sea.receiveShadow = true;
-  root.add(sea);
+  // Vùng bản đồ (bên trái tường) tính bằng pixel trên texture
+  const MAP = { x: 70, y: 70, w: PX * 0.53, h: PY - 140 };
+  const LON_MIN = 101.6;
+  const LON_MAX = 115.9;
+  const LAT_MAX = 23.8;
+  const LAT_MIN = 7.4;
+  const sc = Math.min(MAP.w / ((LON_MAX - LON_MIN) * K), MAP.h / (LAT_MAX - LAT_MIN));
+  const offX = MAP.x + (MAP.w - (LON_MAX - LON_MIN) * K * sc) / 2;
+  const offY = MAP.y + (MAP.h - (LAT_MAX - LAT_MIN) * sc) / 2;
+  const toPx = (lon, lat) => [offX + (lon - LON_MIN) * K * sc, offY + (LAT_MAX - lat) * sc];
+  // Pixel trên texture → toạ độ thế giới (tường quay mặt về phía Bắc, người xem nhìn về phía Nam)
+  const faceZ = z - 0.22;
+  const toWorld = (px, py) => new THREE.Vector3(x + width / 2 - px / ppm, height - py / ppm, faceZ);
 
-  // Đất liền nổi khối
-  const landTop = new THREE.MeshStandardMaterial({ color: '#f7efe1', roughness: 0.8 });
-  const landSide = new THREE.MeshStandardMaterial({ color: '#e7b9c5', roughness: 0.7 });
-  const shapes = VN_LAND.map((ring) => {
-    const s = new THREE.Shape();
-    ring.forEach(([lo, la], i) => { const [x, z] = P(lo, la); if (i) s.lineTo(x, -z); else s.moveTo(x, -z); });
-    return s;
-  });
-  const land = new THREE.Mesh(new THREE.ExtrudeGeometry(shapes, { depth: 0.16, bevelEnabled: false }).rotateX(-Math.PI / 2), [landTop, landSide]);
-  land.position.y = 0.07;
-  land.castShadow = true;
-  land.receiveShadow = true;
-  root.add(land);
+  let km = 0;
+  for (let i = 1; i < trips.length; i++) km += haversine(trips[i - 1], trips[i]);
 
-  // Hoàng Sa, Trường Sa
-  const islGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.12, 8);
-  for (const [lo, la] of [...HOANG_SA, ...TRUONG_SA]) {
-    const [x, z] = P(lo, la);
-    const m = new THREE.Mesh(islGeo, landTop);
-    m.position.set(x, 0.12, z);
-    root.add(m);
-  }
-  const flatText = (lines, x, z, w = 2.4, size = 1) => {
-    const tex = canvasTexture(512, 160, (ctx, cw, ch) => {
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#1f4f6e';
-      ctx.font = `800 ${46 * size}px ${FONT}`;
-      ctx.fillText(lines[0], cw / 2, 62);
-      if (lines[1]) { ctx.font = `600 ${36 * size}px ${FONT}`; ctx.fillText(lines[1], cw / 2, 114); }
+  const tex = canvasTexture(PX, PY, (ctx, w, h) => {
+    // Nền tường sơn kem + khung
+    ctx.fillStyle = '#fbf3ea';
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 0.05;
+    for (let i = 0; i < 2500; i++) { ctx.fillStyle = Math.random() < 0.5 ? '#8a6d5a' : '#ffffff'; ctx.fillRect(Math.random() * w, Math.random() * h, 3, 3); }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 18;
+    ctx.strokeRect(9, 9, w - 18, h - 18);
+
+    // Biển
+    const sea = ctx.createLinearGradient(MAP.x, MAP.y, MAP.x + MAP.w, MAP.y + MAP.h);
+    sea.addColorStop(0, '#d6effb');
+    sea.addColorStop(1, '#a9dbf2');
+    ctx.fillStyle = sea;
+    ctx.beginPath(); ctx.roundRect(MAP.x, MAP.y, MAP.w, MAP.h, 40); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 70; i++) { const sx = MAP.x + 30 + Math.random() * (MAP.w - 60); const sy = MAP.y + 30 + Math.random() * (MAP.h - 60); ctx.beginPath(); ctx.moveTo(sx, sy); ctx.quadraticCurveTo(sx + 12, sy - 6, sx + 24, sy); ctx.stroke(); }
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(MAP.x, MAP.y, MAP.w, MAP.h, 40); ctx.clip();
+
+    // Đất liền
+    ctx.beginPath();
+    for (const ring of VN_LAND) ring.forEach(([lo, la], i) => { const [px, py] = toPx(lo, la); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+    ctx.closePath();
+    ctx.shadowColor = 'rgba(120,60,80,0.25)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 6;
+    const land = ctx.createLinearGradient(0, MAP.y, 0, MAP.y + MAP.h);
+    land.addColorStop(0, '#fff8ee');
+    land.addColorStop(1, '#ffe9ef');
+    ctx.fillStyle = land;
+    ctx.fill('evenodd');
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#e39ab0';
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Hoàng Sa, Trường Sa
+    ctx.fillStyle = '#fff8ee';
+    ctx.strokeStyle = '#e39ab0';
+    ctx.lineWidth = 2;
+    for (const [lo, la] of [...HOANG_SA, ...TRUONG_SA]) { const [px, py] = toPx(lo, la); ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    const center = (l) => l.reduce((a, [lo, la]) => [a[0] + lo / l.length, a[1] + la / l.length], [0, 0]);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#1f4f6e';
+    const islLabel = (list, dy) => {
+      const [lo, la] = center(list);
+      const [px, py] = toPx(lo, la);
+      ctx.font = `800 30px ${FONT}`;
+      ctx.fillText('Quần đảo', px, py + dy);
+      ctx.fillText(list === HOANG_SA ? 'Hoàng Sa' : 'Trường Sa', px, py + dy + 34);
+      ctx.font = `600 26px ${FONT}`;
+      ctx.fillText('(Việt Nam)', px, py + dy + 66);
+    };
+    islLabel(HOANG_SA, -120);
+    islLabel(TRUONG_SA, -175);
+    { const [px, py] = toPx(111.6, 13.4); ctx.font = `800 40px ${FONT}`; ctx.fillStyle = 'rgba(31,79,110,0.35)'; ctx.fillText('B I Ể N   Đ Ô N G', px, py); }
+
+    // Đường hành trình
+    ctx.setLineDash([16, 12]);
+    ctx.strokeStyle = 'rgba(255,94,135,0.85)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    trips.forEach((t, i) => { const [px, py] = toPx(t.lon, t.lat); if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Tên địa điểm
+    for (const t of trips) {
+      const [px, py] = toPx(t.lon, t.lat);
+      ctx.fillStyle = '#ff4d7a';
+      ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.font = `800 30px ${FONT}`;
+      ctx.textAlign = t.lx < 0 ? 'right' : t.lx > 0 ? 'left' : 'center';
+      const tx = px + (t.lx || 0) * 34;
+      const ty = py + (t.ly || 0) * 30 + 11;
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineJoin = 'round';
+      ctx.strokeText(t.name, tx, ty);
+      ctx.fillStyle = '#8a2f4f';
+      ctx.fillText(t.name, tx, ty);
+    }
+    ctx.restore();
+
+    // Bảng chữ bên phải
+    const RX = MAP.x + MAP.w + 70;
+    const RW = w - RX - 70;
+    const cx = RX + RW / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#c75b7a';
+    ctx.font = `150px ${SCRIPT}`;
+    ctx.fillText('Hành trình', cx, 250);
+    ctx.font = `110px ${SCRIPT}`;
+    ctx.fillText(`của ${couple}`, cx, 380);
+    drawHeart(ctx, cx, 470, 60, '#ff8fab');
+    ctx.fillStyle = '#6d597a';
+    ctx.font = `700 52px ${FONT}`;
+    ctx.fillText(`${trips.length} nơi đã cùng nhau đi qua`, cx, 590);
+    ctx.font = `500 40px ${FONT}`;
+    ctx.fillText(`khoảng ${Math.round(km / 10) * 10} km dọc dải đất hình chữ S`, cx, 650);
+    // Danh sách 2 cột
+    ctx.font = `600 34px ${FONT}`;
+    ctx.textAlign = 'left';
+    const half = Math.ceil(trips.length / 2);
+    trips.forEach((t, i) => {
+      const col = i < half ? 0 : 1;
+      const row = i < half ? i : i - half;
+      const lx = RX + 30 + col * (RW / 2);
+      const ly = 760 + row * 52;
+      drawHeart(ctx, lx + 14, ly - 12, 26, '#ff6f91');
+      ctx.fillStyle = '#5b4b5f';
+      ctx.fillText(t.name, lx + 40, ly);
     });
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (160 / 512)), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
-    m.rotation.set(-Math.PI / 2, 0, Math.PI);
-    m.position.set(x, 0.09, z);
-    root.add(m);
-  };
-  const avg = (list) => list.reduce((a, [lo, la]) => [a[0] + lo / list.length, a[1] + la / list.length], [0, 0]);
-  const [hsLo, hsLa] = avg(HOANG_SA);
-  const [tsLo, tsLa] = avg(TRUONG_SA);
-  { const [x, z] = P(hsLo, hsLa + 1.1); flatText(['QĐ Hoàng Sa', '(Việt Nam)'], x, z, 2.1); }
-  { const [x, z] = P(tsLo, tsLa + 2.0); flatText(['QĐ Trường Sa', '(Việt Nam)'], x, z, 2.1); }
-  { const [x, z] = P(112.2, 13.6); flatText(['BIỂN ĐÔNG'], x, z, 2.6, 1.1); }
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    const by = h - 170;
+    ctx.fillStyle = '#ff6f91';
+    ctx.beginPath(); ctx.roundRect(cx - 360, by, 720, 92, 46); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `700 40px ${FONT}`;
+    ctx.fillText('💕 Chạm vào trái tim để xem ảnh', cx, by + 60);
+  });
+  tex.anisotropy = 8;
 
-  // Bảng tiêu đề ở mép phía bắc (hướng lối đi chính)
-  {
-    const tex = canvasTexture(1024, 300, (ctx, w, h) => {
-      ctx.fillStyle = '#fffaf5'; ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = '#ff8fab'; ctx.lineWidth = 12; ctx.strokeRect(10, 10, w - 20, h - 20);
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#c75b7a'; ctx.font = `110px ${SCRIPT}`;
-      ctx.fillText(`Hành trình của ${couple}`, w / 2, 135);
-      ctx.fillStyle = '#6d597a'; ctx.font = `600 40px ${FONT}`;
-      ctx.fillText(`${trips.length} nơi đã cùng nhau đi qua · chạm trái tim để xem ảnh`, w / 2, 220);
-      drawHeart(ctx, 80, 150, 50, '#ff8fab'); drawHeart(ctx, w - 80, 150, 50, '#ff8fab');
-    });
-    const g = new THREE.Group();
-    g.position.set(center.x, 0, center.z - BH / 2 - 0.6);
-    g.rotation.y = Math.PI;
-    const wood = new THREE.MeshStandardMaterial({ color: '#c8a27a', roughness: 0.8 });
-    for (const sx of [-1.7, 1.7]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.9, 0.08), wood); l.position.set(sx, 0.45, 0); g.add(l); }
-    // Bảng thấp, ngả về sau để không che bản đồ
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.05), new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide }));
-    board.position.y = 0.8;
-    board.rotation.x = 0.35;
-    g.add(board);
-    root.add(g);
-    venue.addCircle(center.x - 1.7, center.z - BH / 2 - 0.6, 0.2);
-    venue.addCircle(center.x + 1.7, center.z - BH / 2 - 0.6, 0.2);
+  // Khối tường + mặt tranh
+  const wallMat = new THREE.MeshStandardMaterial({ color: '#efe2d3', roughness: 0.9 });
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(width + 0.6, height + 0.5, 0.4), wallMat);
+  wall.position.set(x, (height + 0.5) / 2, z);
+  wall.castShadow = true;
+  wall.receiveShadow = true;
+  root.add(wall);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.28 }));
+  face.position.set(x, height / 2 + 0.05, faceZ - 0.005);
+  face.rotation.y = Math.PI;
+  root.add(face);
+  // Mái che nhỏ + đèn rọi
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(width + 1, 0.18, 0.9), new THREE.MeshStandardMaterial({ color: '#c8a27a', roughness: 0.7 }));
+  cap.position.set(x, height + 0.6, z - 0.2);
+  root.add(cap);
+  for (const sx of [-width * 0.3, 0, width * 0.3]) {
+    const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 12, 1, true), new THREE.MeshStandardMaterial({ color: '#333', side: THREE.DoubleSide }));
+    lamp.position.set(x + sx, height + 0.35, z - 0.7);
+    lamp.rotation.x = -0.6;
+    root.add(lamp);
   }
+  const wash = new THREE.PointLight('#fff1dc', 25, 16, 1.6);
+  wash.position.set(x, height * 0.6, z - 4);
+  root.add(wash);
+  venue.addBox(x - width / 2 - 0.3, x + width / 2 + 0.3, z - 0.25, z + 0.25);
 
-  // Ghim trái tim
+  // Trái tim nổi trên tường
   const hs = new THREE.Shape();
   hs.moveTo(0, -0.5); hs.bezierCurveTo(-0.9, 0.2, -0.6, 0.85, 0, 0.45); hs.bezierCurveTo(0.6, 0.85, 0.9, 0.2, 0, -0.5);
-  const heartGeo = new THREE.ExtrudeGeometry(hs, { depth: 0.18, bevelEnabled: true, bevelSize: 0.06, bevelThickness: 0.06, bevelSegments: 2 }).center();
-  const heartMat = new THREE.MeshStandardMaterial({ color: '#ff4d7a', emissive: '#ff2d6a', emissiveIntensity: 0.35, roughness: 0.35 });
-  const stickGeo = new THREE.CylinderGeometry(0.025, 0.025, 1, 6);
-  const stickMat = new THREE.MeshStandardMaterial({ color: '#ffd6e0' });
+  const heartGeo = new THREE.ExtrudeGeometry(hs, { depth: 0.14, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 }).center();
+  const heartMat = new THREE.MeshStandardMaterial({ color: '#ff4d7a', emissive: '#ff2d6a', emissiveIntensity: 0.45, roughness: 0.35 });
   const pins = trips.map((t, i) => {
-    const [x, z] = P(t.lon, t.lat);
-    const g = new THREE.Group();
-    g.position.set(x, 0.23, z);
-    const stick = new THREE.Mesh(stickGeo, stickMat);
-    stick.position.y = 0.5;
-    g.add(stick);
+    const [px, py] = toPx(t.lon, t.lat);
+    const pos = toWorld(px, py).add(new THREE.Vector3(0, 0.22, -0.1));
     const heart = new THREE.Mesh(heartGeo, heartMat);
-    heart.scale.setScalar(0.32);
-    heart.position.y = 1.1;
-    heart.castShadow = true;
+    heart.scale.setScalar(0.3);
+    heart.position.copy(pos);
+    heart.rotation.y = Math.PI;
     heart.userData.trip = i;
-    g.add(heart);
-    const tex = canvasTexture(512, 128, (ctx, w, h) => {
-      ctx.font = `700 54px ${FONT}`;
-      const tw = Math.min(w - 20, ctx.measureText(t.name).width + 60);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.beginPath(); ctx.roundRect((w - tw) / 2, 20, tw, 88, 44); ctx.fill();
-      ctx.fillStyle = '#c75b7a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(t.name, w / 2, 66);
-    });
-    const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    label.scale.set(1.6, 0.4, 1);
-    label.position.y = 1.65;
-    label.visible = false;
-    g.add(label);
-    root.add(g);
-    return { i, trip: t, heart, label, pos: g.position };
+    root.add(heart);
+    return { i, trip: t, heart, pos };
   });
 
-  // Đường hành trình nét đứt nối các điểm
-  {
-    const pts = pins.map((p) => new THREE.Vector3(p.pos.x, 0.26, p.pos.z));
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineDashedMaterial({ color: '#ff6f91', dashSize: 0.18, gapSize: 0.12 }));
-    line.computeLineDistances();
-    root.add(line);
-  }
-
-  const near = { x: center.x, z: center.z, r: 7.5 };
   return {
     pins,
     hearts: pins.map((p) => p.heart),
-    near,
-    update(t, me) {
+    // Vùng đứng trước tường
+    front: { x, z: z - 3.5, r: 5.5 },
+    update(t) {
       for (const p of pins) {
-        p.heart.rotation.y = t * 1.2 + p.i;
-        p.heart.position.y = 1.1 + Math.sin(t * 2 + p.i) * 0.05;
-        p.label.visible = !!me && Math.hypot(me.x - p.pos.x, me.z - p.pos.z) < 3.2;
+        const k = 0.3 * (1 + Math.max(0, Math.sin(t * 3 + p.i * 0.7)) * 0.18);
+        p.heart.scale.setScalar(k);
       }
     },
   };

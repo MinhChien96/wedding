@@ -18,7 +18,7 @@ const firebaseConfig = {
 };
 
 const ROOT = 'wedding';
-const ZONES = new Set(['welcome', 'ceremony', 'banquet', 'photo', 'party']);
+const ZONES = new Set(['welcome', 'ceremony', 'banquet', 'photo', 'party', 'memory']);
 const OUTFITS = new Set(['suit', 'dress', 'aodai']);
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, n);
 const num = (v, lo, hi) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : 0);
