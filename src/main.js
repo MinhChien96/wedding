@@ -289,7 +289,45 @@ async function init() {
     while (o && !o.userData.avatar) o = o.parent;
     return o?.userData.avatar || null;
   };
+  const hv = new THREE.Vector3();
+  // Trả về chỉ số chuyến đi của trái tim gần điểm chạm nhất (trong maxPx điểm ảnh), hoặc null
+  function heartsNear(x, y, maxPx) {
+    const out = [];
+    for (const h of tripMap3d.hearts) {
+      h.getWorldPosition(hv);
+      if (hv.distanceTo(camera.position) > 30) continue;
+      hv.project(camera);
+      if (hv.z > 1) continue;
+      const d = Math.hypot((hv.x * 0.5 + 0.5) * innerWidth - x, (-hv.y * 0.5 + 0.5) * innerHeight - y);
+      if (d < maxPx) out.push({ i: h.userData.trip, d });
+    }
+    return out.sort((a, b) => a.d - b.d);
+  }
+  function pickHeart(x, y, maxPx) {
+    const list = heartsNear(x, y, maxPx);
+    if (!list.length) return null;
+    // Nhiều trái tim sát nhau (cụm Đà Nẵng – Hội An – Lý Sơn...) → hỏi chọn nơi nào
+    const close = list.filter((h) => h.d - list[0].d < 16);
+    if (close.length > 1) { showHeartPick(close.map((h) => h.i), x, y); return -1; }
+    return list[0].i;
+  }
+  const heartPickEl = document.createElement('div');
+  heartPickEl.id = 'heartPick';
+  heartPickEl.className = 'hidden';
+  document.body.append(heartPickEl);
+  function showHeartPick(ids, x, y) {
+    heartPickEl.innerHTML = `<small>Bạn muốn xem nơi nào?</small>${ids.map((i) => `<button data-i="${i}">📍 ${esc(TRIPS[i].name)}</button>`).join('')}`;
+    heartPickEl.style.left = `${Math.min(innerWidth - 190, Math.max(10, x - 90))}px`;
+    heartPickEl.style.top = `${Math.min(innerHeight - 60 - ids.length * 44, y + 14)}px`;
+    heartPickEl.classList.remove('hidden');
+  }
+  heartPickEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-i]');
+    heartPickEl.classList.add('hidden');
+    if (b) tripMap.openTrip(+b.dataset.i);
+  });
   canvas.addEventListener('pointerdown', (e) => {
+    heartPickEl.classList.add('hidden');
     downAt = { x: e.clientX, y: e.clientY };
     closeSocial();
   });
@@ -304,22 +342,21 @@ async function init() {
   });
   canvas.addEventListener('pointerup', (e) => {
     if (!downAt) return;
-    const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 6;
+    // Ngón tay hay rung nhẹ khi chạm → cho phép lệch nhiều hơn trên màn hình cảm ứng
+    const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < (isTouch ? 14 : 6);
     downAt = null;
     if (!click) return;
     if (state.mode === 'overview') {
       const zn = pickZone(e);
       if (zn) selectZone(zn);
     } else if (state.mode === 'play' && !state.photo) {
+      // Trái tim trên tường bản đồ: chọn theo khoảng cách trên màn hình (dễ trúng hơn bắn tia vào hình nhỏ)
+      const heart = pickHeart(e.clientX, e.clientY, 30);
+      if (heart !== null) { if (heart >= 0) tripMap.openTrip(heart); return; }
       const av = pickAvatar(e);
-      if (av) openSocial(av, e.clientX, e.clientY);
-      else {
-        // Chạm vào trái tim trên bản đồ hành trình → mở ảnh chuyến đi
-        setRay(e);
-        const hit = raycaster.intersectObjects(tripMap3d.hearts)[0];
-        // Chỉ mở thư viện ảnh (không mở kèm bản đồ lớn phía sau)
-        if (hit) tripMap.openTrip(hit.object.userData.trip);
-      }
+      if (av) { openSocial(av, e.clientX, e.clientY); return; }
+      const near = pickHeart(e.clientX, e.clientY, 48);
+      if (near !== null && near >= 0) tripMap.openTrip(near);
     }
   });
 
