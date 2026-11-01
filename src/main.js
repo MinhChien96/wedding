@@ -1740,9 +1740,7 @@ async function init() {
   }
   async function afterJoin(ok) {
     if (!ok) { toast('Chưa vào được voice, thử lại sau nhé'); return; }
-    toast(voice.hasMic
-      ? '🎙️ Đã bật voice! Đứng gần ai sẽ nghe người đó. <b>Nên đeo tai nghe</b> để không bị vọng tiếng.'
-      : '🎧 Bạn đang ở chế độ chỉ nghe. Bấm nút 🎧 bất cứ lúc nào để bật micro.', 6500);
+    music.sfx('chime', 0.5);
     if (pendingStage && voice.hasMic) { pendingStage = false; stageMic(); }
     // iPhone/iPad không cho web chỉnh âm lượng video YouTube → tắt nhạc nền khi dùng voice để nghe rõ giọng
     if (onIOS && screenVideo.ok && music.on) {
