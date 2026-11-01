@@ -826,7 +826,7 @@ async function init() {
       const ev = PROGRAM[idx % PROGRAM.length];
       ev.run();
       toast(`🎤 <b>MC:</b> ${ev.mc}`, 6500);
-      if (state.mode === 'play') addChat('🎤 MC', ev.mc);
+      if (state.mode === 'play' && !mobileUI.matches) addChat('🎤 MC', ev.mc);
       if (state.mode === 'play' || music.on) music.sfx('fanfare', 0.5);
     }
     const next = PROGRAM[(idx + 1) % PROGRAM.length];
@@ -1333,6 +1333,7 @@ async function init() {
   const chatInput = $('#chatInput');
   const chatLog = $('#chatLog');
   function addChat(name, text, av, sys = false) {
+    if (sys && mobileUI.matches) { tick(esc(text)); return; }
     const div = document.createElement('div');
     div.className = `msg${sys ? ' sys' : ''}`;
     div.innerHTML = name ? `<b>${esc(name)}:</b> ${esc(text)}` : esc(text);
@@ -1367,7 +1368,37 @@ async function init() {
     net.send({ t: 'chat', text });
   });
 
+  // ----- Thông báo: trên điện thoại hiện thành dòng chữ chạy ngang, không che màn hình -----
+  const mobileUI = matchMedia('(max-width: 760px), (max-height: 500px)');
+  const ticker = { q: [], busy: false };
+  function tick(html, action = null) {
+    if (ticker.q.some((x) => x.html === html)) return;
+    ticker.q.push({ html, action });
+    if (ticker.q.length > 6) ticker.q.shift();
+    if (!ticker.busy) nextTick();
+  }
+  function nextTick() {
+    const bar = $('#ticker');
+    const it = ticker.q.shift();
+    if (!it) { ticker.busy = false; bar.classList.remove('show'); return; }
+    ticker.busy = true;
+    bar.classList.add('show');
+    const txt = $('#tkText');
+    txt.innerHTML = it.html;
+    const btn = $('#tkBtn');
+    btn.classList.toggle('hidden', !it.action);
+    if (it.action) {
+      btn.textContent = it.action.label;
+      btn.onclick = () => { btn.classList.add('hidden'); it.action.run(); };
+    }
+    const W = $('#tkTrack').clientWidth;
+    const tw = txt.scrollWidth;
+    const speed = ticker.q.length > 2 ? 150 : 95; // px/giây, nhiều thông báo chờ thì chạy nhanh hơn
+    const anim = txt.animate([{ transform: `translateX(${W}px)` }, { transform: `translateX(${-tw}px)` }], { duration: Math.max(2500, ((W + tw) / speed) * 1000), easing: 'linear' });
+    anim.onfinish = nextTick;
+  }
   function toast(html, ms = 3500, action = null) {
+    if (mobileUI.matches) { tick(html, action); return; }
     const t = document.createElement('div');
     t.className = 'toast';
     t.innerHTML = html;

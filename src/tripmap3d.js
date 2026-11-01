@@ -160,13 +160,14 @@ export function buildTripWall({ scene, venue, trips, couple, x = 27, z = 40.3, w
   tex.anisotropy = 8;
 
   // Khối tường + mặt tranh
-  const wallMat = new THREE.MeshStandardMaterial({ color: '#efe2d3', roughness: 0.9 });
+  const wallMat = new THREE.MeshLambertMaterial({ color: '#efe2d3' });
   const wall = new THREE.Mesh(new THREE.BoxGeometry(width + 0.6, height + 0.5, 0.4), wallMat);
   wall.position.set(x, (height + 0.5) / 2, z);
   wall.castShadow = true;
   wall.receiveShadow = true;
   root.add(wall);
-  const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.28 }));
+  // Vật liệu mờ (không phản chiếu) để tường không bị loá; tự sáng nhẹ để đọc rõ cả khi trời tối
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshLambertMaterial({ map: tex, color: '#e9e9e9', emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.22 }));
   face.position.set(x, height / 2 + 0.05, faceZ - 0.005);
   face.rotation.y = Math.PI;
   root.add(face);
@@ -180,9 +181,6 @@ export function buildTripWall({ scene, venue, trips, couple, x = 27, z = 40.3, w
     lamp.rotation.x = -0.6;
     root.add(lamp);
   }
-  const wash = new THREE.PointLight('#fff1dc', 25, 16, 1.6);
-  wash.position.set(x, height * 0.6, z - 4);
-  root.add(wash);
   venue.addBox(x - width / 2 - 0.3, x + width / 2 + 0.3, z - 0.25, z + 0.25);
 
   // Trái tim nổi trên tường
