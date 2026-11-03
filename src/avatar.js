@@ -212,10 +212,11 @@ function mouthGeo() {
 }
 
 function hairParts(L) {
-  const style = L.veil ? 'bun' : L.outfit === 'suit' ? 'short' : L.outfit === 'aodai' ? 'long' : 'wavy';
+  const style = L.veil ? 'bun' : L.groom ? 'undercut' : L.outfit === 'suit' ? 'short' : L.outfit === 'aodai' ? 'long' : 'wavy';
   return geo(`hair-${style}`, () => {
     const parts = [];
-    const short = style === 'short';
+    const undercut = style === 'undercut';
+    const short = style === 'short' || undercut;
     // Lớp tóc ôm đầu: đỉnh bán cầu, đỉnh nào nằm dưới đường chân tóc thì được kéo lên bám theo đường đó
     // → chân tóc cong mềm: cao ở trán, thấp dần về mai/gáy (nữ: phủ hai bên má xuống tới hàm)
     const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -230,8 +231,20 @@ function hairParts(L) {
         v.set((v.x / h) * r, yh, (v.z / h) * r);
       }
     });
-    parts.push(short ? cap.scale(0.106, 0.134, 0.124).translate(0, 0.168, -0.003) : cap.scale(0.122, 0.142, 0.134).translate(0, 0.166, -0.008));
-    if (short) {
+    if (undercut) cap.scale(0.1015, 0.1315, 0.1215).translate(0, 0.1665, -0.002); // cạo sát: ôm sọ
+    else if (short) cap.scale(0.106, 0.134, 0.124).translate(0, 0.168, -0.003);
+    else cap.scale(0.122, 0.142, 0.134).translate(0, 0.166, -0.008);
+    if (!undercut) parts.push(cap);
+    if (undercut) {
+      // Phần tóc dài trên đỉnh, vuốt ngược ra sau và hất sang phải, rẽ ngôi bên trái
+      parts.push(at(ellipsoid(0.082, 0.05, 0.112, 20, 12), 0.01, 0.262, -0.004, 0.12, 0, -0.04));
+      parts.push(at(ellipsoid(0.07, 0.038, 0.052, 16, 10), 0.012, 0.272, 0.072, -0.55, 0, -0.08));
+      // Các lọn chải tạo vân
+      for (let i = 0; i < 6; i++) {
+        const x = -0.045 + i * 0.019;
+        parts.push(at(ellipsoid(0.013, 0.011, 0.1, 8, 6), x + 0.01, 0.3 - Math.abs(x - 0.008) * 0.55, 0.0, 0.1, x * 1.5, -x * 0.6));
+      }
+    } else if (short) {
       // Mái vuốt nhẹ lên, hơi lệch, tóc mai gọn
       parts.push(at(ellipsoid(0.1, 0.032, 0.1, 18, 10), 0.004, 0.252, 0.012, -0.16, 0, -0.04));
       parts.push(at(ellipsoid(0.075, 0.022, 0.035, 14, 8), 0.01, 0.252, 0.074, -0.4, 0, -0.1));
@@ -242,7 +255,7 @@ function hairParts(L) {
       parts.push(at(ellipsoid(0.062, 0.052, 0.048, 16, 12), 0, 0.2, -0.122));
       parts.push(at(new THREE.TorusGeometry(0.042, 0.016, 8, 18), 0, 0.2, -0.138));
     }
-    const res = { cap: merge(parts) };
+    const res = { cap: merge(parts), fade: undercut ? cap : null };
     if (style === 'long' || style === 'wavy') {
       // Tóc dài xoã sau lưng (gắn vào đầu, có thể đung đưa)
       const len = style === 'long' ? 0.5 : 0.3;
@@ -260,6 +273,54 @@ function hairParts(L) {
   });
 }
 
+// Kính gọng đen vuông bản to (chú rể): tròng vuông bo góc, cầu kính, càng kính vòng ra sau tai
+// Tròng hình siêu elip (|x/a|^n + |y/b|^n = 1): n càng lớn càng vuông
+class SquircleCurve extends THREE.Curve {
+  constructor(a, b, n = 5) { super(); this.a = a; this.b = b; this.e = 2 / n; }
+  getPoint(t, target = new THREE.Vector3()) {
+    const th = t * Math.PI * 2;
+    const c = Math.cos(th);
+    const s = Math.sin(th);
+    return target.set(this.a * Math.sign(c) * Math.abs(c) ** this.e, this.b * Math.sign(s) * Math.abs(s) ** this.e, 0);
+  }
+}
+function glassesParts() {
+  return geo('glasses', () => {
+    const frame = [];
+    const lens = [];
+    const y = 0.172;
+    const z = 0.118;
+    const A = 0.026; // nửa bề ngang tròng
+    const B = 0.019; // nửa chiều cao tròng
+    const cx0 = 0.036;
+    const black = '#121214';
+    for (const s of [-1, 1]) {
+      const cx = s * cx0;
+      const curve = new SquircleCurve(A, B, 5);
+      frame.push(tint(at(new THREE.TubeGeometry(curve, 48, 0.0028, 6, true), cx, y, z, 0, s * 0.12, 0), black));
+      // Viền trên dày hơn
+      const top = new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(-A * 0.92, B - 0.0006, 0), new THREE.Vector3(A * 0.92, B - 0.0006, 0)), 4, 0.0036, 6, false);
+      frame.push(tint(at(top, cx, y, z + 0.0005, 0, s * 0.12, 0), black));
+      const pts = [];
+      for (let i = 0; i < 48; i++) { const p = curve.getPoint(i / 48); pts.push(new THREE.Vector2(p.x, p.y)); }
+      lens.push(at(new THREE.ShapeGeometry(new THREE.Shape(pts)), cx, y, z - 0.0005, 0, s * 0.12, 0));
+      // Càng kính: từ mép ngoài tròng chạy ra sau tới tai
+      const a = new THREE.Vector3(s * (cx0 + A * Math.cos(0.12) + 0.001), y + B * 0.55, z - A * Math.sin(0.12) - 0.002);
+      const b = new THREE.Vector3(s * 0.106, y + 0.004, -0.012);
+      const d = b.clone().sub(a);
+      const arm = new THREE.BoxGeometry(0.0032, 0.0055, d.length());
+      frame.push(tint(at(arm, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, 0, Math.atan2(d.x, d.z), 0), black));
+      // Bản lề + đệm mũi
+      frame.push(tint(new THREE.BoxGeometry(0.007, 0.008, 0.007).translate(a.x - s * 0.001, a.y, a.z + 0.002), black));
+      frame.push(tint(ellipsoid(0.0028, 0.0045, 0.0016, 6, 4).translate(s * 0.0115, y - 0.008, z - 0.009), '#d8d8dc'));
+    }
+    // Cầu kính thẳng ngang
+    const gap = cx0 - A * Math.cos(0.12);
+    frame.push(tint(new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(-gap - 0.001, y + B * 0.45, z + 0.001), new THREE.Vector3(gap + 0.001, y + B * 0.45, z + 0.001)), 2, 0.0026, 6, false), black));
+    return { frame: merge(frame), lens: merge(lens) };
+  });
+}
+
 // Thân trên theo trang phục, toạ độ tuyệt đối (sẽ dời về khớp eo khi gắn)
 function torsoParts(L) {
   const fem = FEMALE(L);
@@ -272,19 +333,33 @@ function torsoParts(L) {
       // Sơ mi trắng lộ ra ở cổ chữ V + cổ áo
       const vTop = 1.455;
       const vBot = 1.235;
-      const shirt = new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-0.058, vTop - vBot), new THREE.Vector2(0.058, vTop - vBot), new THREE.Vector2(0, 0)]));
-      out.trim.push(at(shirt, 0, vBot, 0.1135, -0.06, 0, 0));
+      // Mặt ngực áo vest (bán kính theo độ cao, khớp với profile lathe ở trên) – dùng để dán sơ mi/ve áo sát bề mặt
+      const chestZ = (x, y, lift) => {
+        const r = y > 1.435 ? 0.152 - (y - 1.435) * 1.7 : y > 1.39 ? 0.172 - (y - 1.39) * 0.44 : 0.165 + Math.min(1, (y - 1.2) / 0.12) * 0.007;
+        return r * 0.66 * Math.sqrt(Math.max(0, 1 - (x / r) ** 2)) + lift;
+      };
+      const shirt = warp(new THREE.PlaneGeometry(1, 1, 6, 10), (v) => {
+        // Tam giác chữ V: bề ngang thu hẹp dần xuống đáy
+        const t = v.y + 0.5;
+        v.x *= 0.116 * t;
+        v.y = vBot + t * (vTop - vBot);
+        v.z = chestZ(v.x, v.y, 0.0015);
+      });
+      out.trim.push(shirt);
       out.trim.push(at(new THREE.CylinderGeometry(0.058, 0.066, 0.045, 16, 1, true), 0, 1.475, -0.008, -0.12, 0, 0));
       // Ve áo chạy dọc hai cạnh chữ V
       for (const s of [-1, 1]) {
-        const lap = new THREE.BoxGeometry(0.03, 0.235, 0.008);
-        out.cloth.push(at(lap, s * 0.044, (vTop + vBot) / 2, 0.116, -0.06, 0, -s * 0.27));
+        // Ve áo bám theo mặt ngực: uốn từng đỉnh về sát bề mặt thân (r theo độ cao)
+        const lap = warp(at(new THREE.BoxGeometry(0.03, 0.235, 0.006, 1, 8, 1), s * 0.044, (vTop + vBot) / 2, 0, 0, 0, -s * 0.27), (v) => {
+          v.z += chestZ(v.x, v.y, 0.0035);
+        });
+        out.cloth.push(lap);
       }
       if (L.groom) {
         // Nơ cổ + hoa cài áo
-        out.detail.push(tint(at(ellipsoid(0.026, 0.013, 0.008, 10, 6), -0.022, 1.432, 0.119, 0, 0, 0.2), '#1a1a1f'));
-        out.detail.push(tint(at(ellipsoid(0.026, 0.013, 0.008, 10, 6), 0.022, 1.432, 0.119, 0, 0, -0.2), '#1a1a1f'));
-        out.detail.push(tint(ellipsoid(0.009, 0.01, 0.008, 8, 6).translate(0, 1.432, 0.122), '#111114'));
+        out.detail.push(tint(at(ellipsoid(0.026, 0.013, 0.008, 10, 6), -0.022, 1.432, 0.108, 0, 0, 0.2), '#1a1a1f'));
+        out.detail.push(tint(at(ellipsoid(0.026, 0.013, 0.008, 10, 6), 0.022, 1.432, 0.108, 0, 0, -0.2), '#1a1a1f'));
+        out.detail.push(tint(ellipsoid(0.009, 0.01, 0.008, 8, 6).translate(0, 1.432, 0.111), '#111114'));
         for (let i = 0; i < 5; i++) {
           const a = (i / 5) * Math.PI * 2;
           out.detail.push(tint(ellipsoid(0.014, 0.014, 0.008, 8, 6).translate(0.1 + Math.cos(a) * 0.012, 1.34 + Math.sin(a) * 0.012, 0.118), '#fff4f0'));
@@ -293,9 +368,9 @@ function torsoParts(L) {
         out.detail.push(tint(at(new THREE.BoxGeometry(0.008, 0.04, 0.006), 0.1, 1.315, 0.118, 0, 0, 0.3), '#5a8f4a'));
       } else {
         // Cà vạt thắt nút
-        out.detail.push(tint(at(new THREE.CylinderGeometry(0.013, 0.009, 0.022, 6).scale(1, 1, 0.5), 0, 1.438, 0.118), '#8b1e3f'));
+        out.detail.push(tint(at(new THREE.CylinderGeometry(0.013, 0.009, 0.022, 6).scale(1, 1, 0.5), 0, 1.438, 0.107), '#8b1e3f'));
         const tie = new THREE.CylinderGeometry(0.011, 0.022, 0.19, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 0.2);
-        out.detail.push(tint(at(tie, 0, 1.33, 0.118, -0.06, 0, 0), '#8b1e3f'));
+        out.detail.push(tint(at(tie, 0, 1.33, 0.116, -0.03, 0, 0), '#8b1e3f'));
         // Khăn cài túi ngực
         out.detail.push(tint(at(new THREE.ConeGeometry(0.018, 0.025, 3), -0.1, 1.335, 0.105, -0.15, 0, 0), '#ffffff'));
       }
@@ -590,6 +665,15 @@ export class Avatar {
     this.mouthIn.position.set(0, -0.002, 0.003);
     const HR = hairParts(L);
     mesh(HR.cap, hair, H);
+    if (HR.fade) {
+      // Hai bên + gáy cạo sát: màu tóc pha màu da, mờ, không bóng
+      mesh(HR.fade, m({ color: hairColor.clone().lerp(skinColor, 0.12).multiplyScalar(0.6), roughness: 0.9, bumpMap: hairBump(), bumpScale: 0.4 }), H);
+    }
+    if (L.groom) {
+      const GL = glassesParts();
+      mesh(GL.frame, shared('glassFrame', () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.25, metalness: 0.3 })), H, false);
+      mesh(GL.lens, shared('glassLens', () => new THREE.MeshPhysicalMaterial({ color: '#dfeaf2', transparent: true, opacity: 0.16, roughness: 0.02, clearcoat: 1, depthWrite: false })), H, false);
+    }
     if (HR.long) this.longHair = mesh(HR.long, hair, H);
     if (L.veil) {
       // Khăn voan mỏng phủ từ búi tóc xuống gần chân + vương miện
