@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "album": "node scripts/album.mjs"
   },
   "dependencies": {
     "firebase": "^11.10.0",

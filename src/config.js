@@ -16,6 +16,8 @@ export const WEDDING = {
     youtube: 'https://youtu.be/IOe0tNoUGv8',
     // Âm lượng nhạc nền (0–100). Khi bật voice / có người nói / có người hát, nhạc tự hạ thấp hơn nữa.
     volume: 35,
+    // Âm lượng nhạc trên thiệp mời (0–100), thiệp phát cùng bài YouTube ở trên.
+    cardVolume: 70,
     title: 'I Do – Đức Phúc',
     src: '/music/i-do.mp3',
   },
@@ -30,6 +32,43 @@ export const WEDDING = {
     owner: 'NGUYEN MINH CHIEN',
   },
 };
+
+// ====== Thiệp cưới online (trang đầu tiên khi mở link) ======
+// Ảnh cưới: chạy `npm run album -- <thư-mục-ảnh-gốc>` để thu nhỏ ảnh vào public/album/ và tạo src/album.json.
+// Chưa có ảnh thật thì thiệp hiện ảnh mẫu vẽ sẵn.
+// Link riêng cho từng khách: ?to=Anh%20Tuấn&side=trai (side: trai | gai) – tạo hàng loạt ở trang ?admin.
+export const INVITE = {
+  // Ảnh bìa, ví dụ '/album/01.webp'. Để trống → dùng ảnh đầu tiên trong album.
+  cover: '',
+  // Ngày giờ chính (đếm ngược), theo giờ Việt Nam
+  at: '2026-12-20T17:30:00+07:00',
+  lunar: 'Tức ngày 12 tháng 11 năm Bính Ngọ',
+  quote: 'Yêu là cùng nhau nhìn về một hướng – và từ hôm nay, chúng mình cùng đi chung một con đường.',
+  groomFull: 'Nguyễn Minh Chiến',
+  brideFull: 'Nguyễn Thị Xim',
+  families: [
+    { side: 'trai', title: 'Nhà trai', father: 'Ông Nguyễn Văn A', mother: 'Bà Trần Thị B', address: 'Xã Yên Thường, Gia Lâm, Hà Nội', child: 'Trưởng nam' },
+    { side: 'gai', title: 'Nhà gái', father: 'Ông Nguyễn Văn C', mother: 'Bà Phạm Thị D', address: 'Phường Hồng Hải, Hạ Long, Quảng Ninh', child: 'Út nữ' },
+  ],
+  // side: 'trai' | 'gai' | 'all' – link có &side=... chỉ hiện lễ của bên đó (và các lễ 'all')
+  // start/end: giờ Việt Nam dạng YYYY-MM-DDTHH:mm. map: true → nhúng bản đồ Google ngay dưới lễ này.
+  events: [
+    { side: 'gai', icon: '🏮', name: 'Lễ Vu Quy', start: '2026-12-20T08:00', end: '2026-12-20T10:00', place: 'Tư gia nhà gái', address: 'Phường Hồng Hải, Hạ Long, Quảng Ninh' },
+    { side: 'trai', icon: '💒', name: 'Lễ Thành Hôn', start: '2026-12-20T11:00', end: '2026-12-20T13:00', place: 'Tư gia nhà trai', address: 'Xã Yên Thường, Gia Lâm, Hà Nội' },
+    { side: 'all', icon: '🥂', name: 'Tiệc cưới', start: '2026-12-20T17:30', end: '2026-12-20T21:00', place: WEDDING.venue, address: 'Ocean Park, Gia Lâm, Hà Nội', map: true },
+  ],
+  dress: 'Tông pastel nhẹ nhàng (hồng, kem, xanh nhạt) – không bắt buộc',
+  rsvpBy: '10.12.2026',
+};
+
+// Chuyện tình yêu (mốc thời gian trên thiệp)
+export const STORY = [
+  { when: '2019', icon: '☕', title: 'Lần đầu gặp nhau', text: 'Một buổi cà phê cuối tuần do bạn chung rủ – không ai nghĩ đó là khởi đầu.' },
+  { when: '2020', icon: '💌', title: 'Chính thức hẹn hò', text: 'Sau rất nhiều tin nhắn chúc ngủ ngon, một người đã dũng cảm nói lời yêu.' },
+  { when: '2021 – 2025', icon: '🗺️', title: 'Cùng nhau đi khắp Việt Nam', text: 'Mộc Châu, Hạ Long, Hội An, Mũi Né... mỗi chuyến đi là một trái tim trên bản đồ kỷ niệm.' },
+  { when: '2026', icon: '💍', title: 'Lời cầu hôn', text: 'Một chiếc nhẫn, một câu hỏi và một cái gật đầu.' },
+  { when: '20.12.2026', icon: '💒', title: 'Về chung một nhà', text: 'Và chúng mình rất mong có bạn ở đó.' },
+];
 
 // ====== Đố vui "Ai hiểu Chiến & Xim nhất?" ======
 // Mỗi lượt chơi lấy ngẫu nhiên 6 câu. c = vị trí đáp án đúng (bắt đầu từ 0).

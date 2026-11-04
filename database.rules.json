@@ -34,6 +34,12 @@
           ".validate": "newData.child('text').isString() && newData.child('text').val().length <= 300 && newData.child('name').isString() && newData.child('name').val().length <= 20"
         }
       },
+      "rsvp": {
+        "$uid": {
+          ".write": true,
+          ".validate": "newData.child('name').isString() && newData.child('name').val().length <= 40 && newData.child('go').isBoolean() && newData.child('n').isNumber() && newData.child('n').val() >= 0 && newData.child('n').val() <= 10 && newData.child('at').isNumber() && (!newData.child('note').exists() || (newData.child('note').isString() && newData.child('note').val().length <= 200)) && (!newData.child('side').exists() || newData.child('side').val() === '' || newData.child('side').val() === 'trai' || newData.child('side').val() === 'gai') && (!newData.child('to').exists() || (newData.child('to').isString() && newData.child('to').val().length <= 40))"
+        }
+      },
       "likes": {
         "$wish": {
           "$uid": {

@@ -2,7 +2,40 @@
 
 Web 3D cho khách mời tham dự đám cưới online: mỗi người tạo nhân vật, đi lại giữa các khu, chat, nhảy, nâng ly và gửi lời chúc. Lấy cảm hứng từ các trang 3D map đi concert.
 
-## Tính năng
+## Thiệp cưới online (trang đầu tiên khi mở link)
+
+Mở link là thấy **thiệp cưới 2D** nhẹ, mở nhanh trên điện thoại (chưa tải Three.js). Bấm "🎉 Vào tiệc cưới 3D" mới tải tiệc 3D; trong tiệc có nút "💌 Thiệp" để xem lại thiệp.
+
+- **Bì thư mở đầu**: "Thân gửi <tên khách>", chạm vào con dấu 囍 → nắp thư lật, thư trượt ra, hoa bung (lần chạm này cũng bật nhạc nền).
+- **Nhạc nền**: dùng chung bài YouTube với màn hình sân khấu tiệc 3D (`WEDDING.music.youtube`, âm lượng `cardVolume`), khung video được ẩn. YouTube lỗi/bị chặn thì tự dùng file `music.src` hoặc nhạc tự sinh. Nút nhạc góc trên có sóng nhạc chạy khi đang phát.
+- **Bìa thiệp**: monogram chữ cái đầu tên, ảnh cưới tự đổi kiểu Ken Burns, tên viết tay hiện dần, ảnh trôi chậm khi cuộn (parallax), cánh hoa rơi khắp thiệp.
+- **Hiệu ứng**: từng phần hiện dần khi cuộn (trượt, phóng, mờ → rõ, lật số đếm ngược, đóng dấu chữ Hỷ, đường thời gian tự vẽ), nút có gợn sóng và ánh sáng lướt, chạm chỗ trống nảy trái tim, thanh tiến độ đọc. Tự tắt khi máy bật "Giảm chuyển động".
+- **Responsive**: điện thoại nhỏ (320px), điện thoại xoay ngang, máy tính bảng (2 cột lịch trình, 3 cột album) và máy tính (ảnh bìa cố định bên trái, nội dung cuộn bên phải).
+- **Lời mời**: chữ Hỷ, câu trích dẫn, thông tin bố mẹ hai họ, tên khách được mời, ngày giờ cả âm lịch.
+- **Đếm ngược** tới giờ cưới.
+- **Lịch trình**: Lễ Vu Quy / Lễ Thành Hôn / Tiệc cưới (giờ, địa điểm) với nút 🧭 Chỉ đường (Google Maps), 📅 thêm vào Google Lịch, 🍎 lịch iPhone (.ics), bản đồ nhúng.
+- **Album ảnh cưới**: lưới ảnh, chạm để xem toàn màn hình, vuốt chuyển ảnh, tải ảnh.
+- **Chuyện tình yêu**: các mốc thời gian (`STORY` trong `src/config.js`).
+- **Xác nhận tham dự (RSVP)**: có đến không, mấy người, khách nhà trai/nhà gái, lời nhắn. Lưu ở Firebase `wedding/rsvp`.
+- **Lời chúc**: gửi từ thiệp, dùng chung sổ lưu bút với tiệc 3D.
+- **Hộp mừng cưới**: mã VietQR + số tài khoản (nút copy).
+- **Link riêng từng khách**: `?to=Anh%20Tuấn&side=trai` → thiệp ghi "Kính mời Anh Tuấn", chỉ hiện lễ của nhà trai (và các lễ chung), thứ tự hai họ / tên cô dâu chú rể theo bên mời; vào tiệc 3D được điền sẵn tên.
+- **Trang quản lý `?admin`**: tạo link mời hàng loạt (mỗi dòng `Tên | trai/gai`, copy từng link hoặc tất cả), thống kê xác nhận tham dự (số người, theo từng bên), tải file CSV mở bằng Excel, xem toàn bộ lời chúc.
+- **Ảnh xem trước khi gửi link** qua Zalo / Messenger / Facebook (`og:image` = `public/og.jpg`).
+- **Ảnh cưới trong tiệc 3D**: 6 giá vẽ trưng ảnh hai bên lối vào ở Cổng đón khách, tự đổi ảnh; bấm vào khung (hoặc lại gần → "🖼️ Xem album ảnh cưới") để xem ảnh lớn.
+- Vào thẳng tiệc 3D, bỏ qua thiệp: thêm `?3d` vào link.
+
+### Thêm ảnh cưới thật
+
+```bash
+npm i -D sharp                       # một lần (hoặc: yarn add -D sharp)
+npm run album -- ~/Pictures/anh-cuoi  # thư mục ảnh gốc (jpg/png/heic...)
+npm run album -- ~/Pictures/anh-cuoi --cover "05 - Bien.jpg"   # chọn ảnh làm og:image
+```
+
+Script thu nhỏ ảnh (WebP 1600px + ảnh nhỏ 640px) vào `public/album/`, tạo `src/album.json` và `public/og.jpg` (1200×630). Ảnh xếp theo tên file; tên kiểu `03 - Dạo phố cổ.jpg` thành chú thích "Dạo phố cổ". Ảnh bìa thiệp: `INVITE.cover` trong `src/config.js` (để trống = ảnh đầu tiên). Chưa có ảnh thật thì thiệp hiện ảnh mẫu vẽ bằng canvas.
+
+## Tính năng tiệc 3D
 
 - **Bản đồ 3D toàn cảnh**: xoay, zoom, có 4 góc nhìn sẵn (Toàn cảnh, Nhìn từ trên, Từ lễ đài, Từ sân khấu). Bấm vào khu để xem mô tả, số người, "Vào khu này" hoặc "Xem từ khu này".
 - **5 khu vực**: Cổng đón khách · Lễ đường · Tiệc cưới (12 bàn, bánh cưới) · Góc check-in · Sân khấu & sàn nhảy LED.
@@ -52,6 +85,7 @@ Mở http://localhost:5173. Mở thêm vài tab để thấy nhiều người c�
 ## Tuỳ biến
 
 - Tên cô dâu chú rể, ngày, giờ, địa điểm, hashtag, thông tin nhận mừng cưới: sửa trong `src/config.js`.
+- Nội dung thiệp (bố mẹ hai họ, các lễ, địa chỉ, giờ đếm ngược, âm lịch, trang phục, hạn xác nhận) trong `INVITE`, chuyện tình yêu trong `STORY` (`src/config.js`). Giao diện thiệp: `src/invite.js`, `src/card.css`. Tiêu đề / mô tả khi chia sẻ link được lấy từ `WEDDING` lúc build (`vite.config.js`).
 - Bố cục khu vực: `ZONES` trong `src/venue.js`. Mô hình sân khấu, bàn tiệc, cổng hoa... nằm trong `buildVenue()` ở cùng file.
 - Nhân vật và biểu cảm: `src/avatar.js`. Vật trang trí mới (xe hoa, đài phun nước, piano, cún...): `src/decor.js`. Hiệu ứng (pháo hoa, đèn trời, bóng bay...): `src/effects.js`. Sao, đom đóm, cánh hoa rơi: `src/ambient.js`.
 - Điểm tương tác (E/R) và hành động nhanh: `INTERACTS`, `ACTIONS` trong `src/main.js`. Mở trang với `?debug` để truy cập `window.__wedding` trong console.
@@ -62,5 +96,6 @@ Mở http://localhost:5173. Mở thêm vài tab để thấy nhiều người c�
 Web là site tĩnh (Vite), realtime dùng Firebase Realtime Database nên deploy được lên Vercel/Netlify/Cloudflare Pages.
 
 - **Vercel**: Import repo → Framework Vite (tự nhận) → Deploy. Build `npm run build`, output `dist`.
-- **Firebase**: cấu hình nằm trong `src/network.js`. Dán nội dung `database.rules.json` vào Firebase Console → Realtime Database → Rules → Publish (thay cho test mode, vốn hết hạn sau 30 ngày).
-- Dữ liệu nằm dưới nhánh `wedding/`: `presence` (người đang mở trang), `peers` (khách đã vào), `st` (vị trí), `events` (chat/hiệu ứng/cảm xúc, tự dọn sau 15 giây), `wishes` (sổ lưu bút), `likes` (tim cho lời chúc), `boards` (Bảng vàng).
+- **Ảnh xem trước khi gửi link**: Zalo/Facebook cần đường dẫn ảnh tuyệt đối. Trên Vercel tự lấy tên miền production; nơi khác đặt `VITE_SITE_URL=https://ten-mien-cua-ban` trong `.env` (hoặc biến môi trường lúc build). Đổi ảnh xong có thể làm mới bộ nhớ đệm của Facebook ở developers.facebook.com/tools/debug.
+- **Firebase**: cấu hình nằm trong `src/firebase.js`. Dán nội dung `database.rules.json` vào Firebase Console → Realtime Database → Rules → Publish (thay cho test mode, vốn hết hạn sau 30 ngày).
+- Dữ liệu nằm dưới nhánh `wedding/`: `presence` (người đang mở trang), `peers` (khách đã vào), `st` (vị trí), `events` (chat/hiệu ứng/cảm xúc, tự dọn sau 15 giây), `wishes` (sổ lưu bút), `likes` (tim cho lời chúc), `boards` (Bảng vàng), `rsvp` (xác nhận tham dự từ thiệp, mỗi máy một dòng). ⚠️ Nhớ dán lại `database.rules.json` mới lên Firebase, nếu không nút "Gửi xác nhận" sẽ báo lỗi. Dữ liệu dưới `wedding/` ai cũng đọc được (giống sổ lưu bút) nên đừng hỏi số điện thoại/địa chỉ trong form xác nhận.

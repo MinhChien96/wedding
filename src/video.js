@@ -4,15 +4,12 @@
 // sân khấu vẫn che được video đúng như vật thật.
 import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+import { loadYT } from './ytaudio.js';
+
+export { parseYouTubeId } from './ytaudio.js';
 
 const PX_W = 960;
 const PX_H = 540;
-
-export function parseYouTubeId(url) {
-  if (!url) return '';
-  const m = String(url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
-  return m ? m[1] : /^[\w-]{11}$/.test(url) ? url : '';
-}
 
 export class ScreenVideo {
   constructor({ videoId, center, width, camera }) {
@@ -73,6 +70,7 @@ export class ScreenVideo {
         },
         events: {
           onReady: (e) => {
+            if (this.failed) return; // đã bỏ cuộc (hết giờ chờ) và gỡ khung video
             clearTimeout(this.failTimer);
             this.ok = true;
             e.target.mute();
@@ -88,13 +86,7 @@ export class ScreenVideo {
         },
       });
     };
-    if (window.YT?.Player) { create(); return; }
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { prev?.(); create(); };
-    const s = document.createElement('script');
-    s.src = 'https://www.youtube.com/iframe_api';
-    s.onerror = () => this.fail('script');
-    document.head.append(s);
+    loadYT().then(create, () => this.fail('script'));
   }
 
   fail(reason) {

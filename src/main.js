@@ -19,6 +19,9 @@ import { Effects, FW_COLORS } from './effects.js';
 import { Ambient } from './ambient.js';
 import { buildDecor } from './decor.js';
 import { drawHeart, canvasTexture, FONT, SCRIPT } from './textures.js';
+import { PHOTOS } from './album.js';
+import { openLightbox } from './lightbox.js';
+import { buildAlbumFrames } from './albumframes.js';
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -353,6 +356,8 @@ async function init() {
       // Trái tim trên tường bản đồ: chọn theo khoảng cách trên màn hình (dễ trúng hơn bắn tia vào hình nhỏ)
       const heart = pickHeart(e.clientX, e.clientY, 30);
       if (heart !== null) { if (heart >= 0) tripMap.openTrip(heart); return; }
+      const photo = pickAlbum(e);
+      if (photo !== null) { openLightbox(PHOTOS, photo); return; }
       const av = pickAvatar(e);
       if (av) { openSocial(av, e.clientX, e.clientY); return; }
       const near = pickHeart(e.clientX, e.clientY, 48);
@@ -399,8 +404,10 @@ async function init() {
 
   function openJoin(zone) {
     renderPicker();
-    $('#jName').value = prof.name;
-    $('#jSub').value = prof.sub;
+    // Mở từ link mời riêng (?to=...) → điền sẵn tên khách
+    const guest = JSON.parse(store.getItem('wedding-guest') || 'null');
+    $('#jName').value = prof.name || (guest?.to || '').slice(0, 20);
+    $('#jSub').value = prof.name ? prof.sub : ({ trai: 'Nhà trai', gai: 'Nhà gái' }[guest?.side] || prof.sub);
     $('#jZone').value = zone?.id || 'welcome';
     $('#joinModal').classList.remove('hidden');
     setTimeout(() => $('#jName').focus(), 50);
@@ -1622,6 +1629,17 @@ async function init() {
     actions: [{ label: '🔍 Xem bản đồ lớn', run: () => tripMap.open() }, { label: '📸 Xem ảnh từ chuyến đầu', run: () => tripMap.openTrip(0) }],
   });
 
+  // ---------- Album ảnh cưới trên giá vẽ ở cổng đón khách ----------
+  const albumFrames = buildAlbumFrames({ scene, venue, photos: PHOTOS });
+  for (const sp of albumFrames.spots) {
+    INTERACTS.push({ x: sp.x, z: sp.z, r: 2.6, actions: [{ label: '🖼️ Xem album ảnh cưới', run: () => openLightbox(PHOTOS, 0) }] });
+  }
+  const pickAlbum = (e) => {
+    setRay(e);
+    const hit = raycaster.intersectObjects(albumFrames.meshes)[0];
+    return hit && hit.distance < 18 ? albumFrames.photoAt(hit.object.userData.frame) : null;
+  };
+
   // ---------- Bàn tiệc: thực đơn, nâng ly cả bàn, gắp món ----------
   const tableOf = (p) => {
     let best = null;
@@ -2148,6 +2166,8 @@ async function init() {
       if (e.key === 'Escape') document.activeElement.blur();
       return;
     }
+    // Đang mở thiệp / xem ảnh: không điều khiển nhân vật
+    if (document.body.classList.contains('overlay-open')) return;
     if (document.querySelector('.modal:not(.hidden)')) {
       if (e.key === 'Escape') document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
       return;
@@ -2585,6 +2605,8 @@ async function init() {
   }
   function frame() {
     requestAnimationFrame(frame);
+    // Thiệp đang che kín màn hình → tạm dừng vẽ cho đỡ tốn pin
+    if (document.body.classList.contains('card-open')) { clock.getDelta(); return; }
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
     const now = performance.now();
@@ -2654,6 +2676,7 @@ async function init() {
     ambient.update(t, dt, focus);
     fx.update(dt);
     tripMap3d.update(t, state.me?.pos);
+    albumFrames.update(t);
     voice.update(performance.now());
     updateOverlays(t);
     render();

@@ -1,23 +1,12 @@
 // Realtime qua Firebase Realtime Database (chạy được trên hosting tĩnh như Vercel).
 // Giữ nguyên interface cũ (on / send / join / leave / id / online) nên main.js không phải đổi nhiều.
 // Nếu không kết nối được Firebase, app vẫn chạy ở chế độ offline.
-import { initializeApp } from 'firebase/app';
 import {
-  getDatabase, ref, child, push, set, update, remove, get, query, orderByKey, startAfter, limitToLast,
+  ref, child, push, set, update, remove, get, query, orderByKey, startAfter, limitToLast,
   onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect,
 } from 'firebase/database';
+import { getDb, deviceUid, ROOT } from './firebase.js';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyCACOtPmdFAb73y0QWaB3wofi385k-s-xA',
-  authDomain: 'wedding-f08d3.firebaseapp.com',
-  databaseURL: 'https://wedding-f08d3-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId: 'wedding-f08d3',
-  storageBucket: 'wedding-f08d3.firebasestorage.app',
-  messagingSenderId: '525677830386',
-  appId: '1:525677830386:web:19039c5fd13ebc1549b06b',
-};
-
-const ROOT = 'wedding';
 const ZONES = new Set(['welcome', 'ceremony', 'banquet', 'photo', 'party', 'memory']);
 const OUTFITS = new Set(['suit', 'dress', 'aodai']);
 const clean = (s, n) => String(s ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, n);
@@ -38,10 +27,7 @@ export class Net {
     this.last = { chat: 0, wish: 0, fx: 0 };
     this.started = false;
     // id cố định theo thiết bị: dùng cho thả tim lời chúc, bảng xếp hạng (mỗi máy một dòng)
-    try {
-      this.uid = localStorage.getItem('wedding-uid');
-      if (!this.uid) { this.uid = `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`; localStorage.setItem('wedding-uid', this.uid); }
-    } catch { this.uid = `u${Math.random().toString(36).slice(2, 12)}`; }
+    this.uid = deviceUid();
     this.last.react = 0;
   }
 
@@ -50,8 +36,7 @@ export class Net {
 
   connect() {
     try {
-      const app = initializeApp(firebaseConfig);
-      this.db = getDatabase(app);
+      this.db = getDb();
     } catch (e) {
       console.warn('Firebase init failed, offline mode', e);
       return;
