@@ -86,28 +86,44 @@ const animate = (root) => root.querySelectorAll('[data-a]:not(.in)').forEach((el
 
 function renderCard() {
   const withEnvelope = !(params.has('3d') || location.hash === '#3d');
+  let secNo = 0;
+  // Nhãn nhỏ đánh số phía trên tiêu đề từng phần: "01 · Đếm ngược"
+  const eyebrow = (label) => `<p class="cd-eyebrow" data-a="up"><b>${pad(++secNo)}</b>${esc(label)}</p>`;
+  const dateDots = `${pad(main.D)} · ${pad(main.M)} · ${main.Y}`;
+  const ribbon = [`${names[0].short} & ${names[1].short}`, 'Save the date', dateDots, "We're getting married", WEDDING.hashtag].filter(Boolean)
+    .map((t) => `<span>${esc(t)}</span><i>✦</i>`).join('');
+  const acc = String(WEDDING.gift?.account || '').replace(/(\d{4})(?=\d)/g, '$1 ');
   card.innerHTML = `
-  <div class="cd-backdrop" style="background-image:url('${esc(coverSrc())}')"></div>
+  <div class="cd-aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
   <main class="cd" id="cdScroll">
     <section class="cd-cover" id="cdTop">
-      <div class="cd-cover-media" id="cdMedia"><img class="cd-slide on" src="${esc(coverSrc())}" alt="Ảnh cưới ${esc(couple)}" /></div>
-      <div class="cd-cover-shade"></div>
-      <div class="cd-cover-text" id="cdCoverText">
+      <div class="cd-cover-inner" id="cdCoverText">
         <div class="cd-mono" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" /></svg><span>${esc([...names[0].short][0] || '')}<i>&</i>${esc([...names[1].short][0] || '')}</span></div>
         <p class="cd-kicker">Save the date</p>
+        <div class="cd-arch-wrap" id="cdArch">
+          <div class="cd-arch" id="cdMedia"><img class="cd-slide on" src="${esc(coverSrc())}" alt="Ảnh cưới ${esc(couple)}" /></div>
+          <svg class="cd-badge" viewBox="0 0 120 120" aria-hidden="true">
+            <defs><path id="cdCirc" d="M60,60 m-44,0 a44,44 0 1,1 88,0 a44,44 0 1,1 -88,0" /></defs>
+            <circle cx="60" cy="60" r="58" />
+            <text><textPath href="#cdCirc" textLength="272">SAVE THE DATE ✦ ${esc(dateDots.replace(/ /g, ''))} ✦</textPath></text>
+            <text class="cd-badge-heart" x="60" y="68" text-anchor="middle">♥</text>
+          </svg>
+        </div>
         <h1 class="script"><span class="nm">${esc(names[0].short)}</span> <span class="amp">&</span> <span class="nm">${esc(names[1].short)}</span></h1>
-        <p class="cd-date">${pad(main.D)} · ${pad(main.M)} · ${main.Y}</p>
+        <p class="cd-date"><span>${weekday(main)}</span>${dateDots}</p>
         ${guest.to ? `<p class="cd-to">Thân gửi <b>${esc(guest.to)}</b></p>` : ''}
-        <button class="cd-open" id="cdOpen">💌 Xem thiệp mời</button>
+        <button class="cd-btn primary magnet cd-open" id="cdOpen">💌 Xem thiệp mời</button>
       </div>
       <button class="cd-scroll-hint" id="cdHint" aria-label="Cuộn xuống"><i></i></button>
     </section>
 
-    <section class="cd-sec cd-paper" id="cdInvite">
+    <div class="cd-ribbon" aria-hidden="true"><div class="cd-ribbon-track">${ribbon}${ribbon}</div></div>
+
+    <section class="cd-sec cd-card cd-paper" id="cdInvite">
       <div class="cd-hy" data-a="stamp">囍</div>
       <p class="cd-quote" data-a="blur" ${dl(0.3)}>“${esc(INVITE.quote)}”</p>
       <div class="cd-families">
-        ${families.map((f, i) => `<div data-a="${i ? 'right' : 'left'}" ${dl(0.15 + i * 0.15)}><h4>${esc(f.title)}</h4><p>${esc(f.father)}</p><p>${esc(f.mother)}</p><small>${esc(f.address)}</small></div>`).join('')}
+        ${families.map((f, i) => `<div class="cd-fam" data-a="${i ? 'right' : 'left'}" ${dl(0.15 + i * 0.15)}><h4>${esc(f.title)}</h4><p>${esc(f.father)}</p><p>${esc(f.mother)}</p><small>${esc(f.address)}</small></div>`).join('')}
       </div>
       <p class="cd-small" data-a="up">Trân trọng báo tin lễ thành hôn của con chúng tôi</p>
       <div class="cd-names">
@@ -131,12 +147,17 @@ function renderCard() {
     </section>
 
     <section class="cd-sec" id="cdCount">
+      ${eyebrow('Đếm ngược')}
       <h2 class="cd-h" data-a="h">Chỉ còn</h2>
-      <div class="cd-count" id="cdCountBox">${['Ngày', 'Giờ', 'Phút', 'Giây'].map((l, i) => `<div data-a="flip" ${dl(0.1 + i * 0.1)}><b>00</b><span>${l}</span></div>`).join('')}</div>
+      <div class="cd-count" id="cdCountBox">${['Ngày', 'Giờ', 'Phút', 'Giây'].map((l, i) => `<div data-a="flip" ${dl(0.1 + i * 0.1)}>
+        <svg viewBox="0 0 64 64" aria-hidden="true">${i ? '' : '<defs><linearGradient id="cdRingG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6a5c0" /><stop offset="1" stop-color="#c98bd9" /></linearGradient></defs>'}<circle class="bg" cx="32" cy="32" r="29" /><circle class="fg" cx="32" cy="32" r="29" /></svg>
+        <b>00</b><span>${l}</span></div>`).join('')}</div>
+      <p class="cd-count-date" data-a="up" ${dl(0.5)}>${weekday(main)} · ${dateDots} · ${esc(main.t)}</p>
     </section>
 
     <section class="cd-sec" id="cdEvents">
-      <h2 class="cd-h" data-a="h">Lịch trình</h2>
+      ${eyebrow('Lịch trình')}
+      <h2 class="cd-h" data-a="h">Ngày chung đôi</h2>
       <div class="cd-events">
       ${events.map((ev, i) => {
         const p = parts(ev.start);
@@ -145,68 +166,86 @@ function renderCard() {
         // Máy tính bảng trở lên: 2 cột, sự kiện có bản đồ và sự kiện lẻ cuối cùng chiếm cả hàng
         const wide = ev.map || (soloEvent && ev === soloEvent);
         return `<article class="cd-event${wide ? ' has-map' : ''}" data-a="${i % 2 ? 'right' : 'left'}" ${dl(0.1)}>
-          <div class="cd-ev-ic">${ev.icon || '💍'}</div>
-          <h3>${esc(ev.name)}${ev.side !== 'all' ? ` <small>${esc(SIDES[ev.side] || '')}</small>` : ''}</h3>
-          <p class="cd-ev-time">🕰️ <b>${esc(p.t)}${end ? ` – ${esc(end)}` : ''}</b> · ${weekday(p)}, ${pad(p.D)}.${pad(p.M)}.${p.Y}</p>
-          <p class="cd-ev-place">📍 <b>${esc(ev.place)}</b><br />${esc(ev.address || '')}</p>
-          <div class="cd-ev-btns">
-            <a class="cd-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${mapQuery(ev)}">🧭 Chỉ đường</a>
-            <a class="cd-btn" target="_blank" rel="noopener" href="${cal.google}">📅 Google Lịch</a>
-            <a class="cd-btn" href="${cal.ics}" download="dam-cuoi-${i + 1}.ics">🍎 Lịch iPhone</a>
+          <div class="tk-top">
+            <div class="tk-time"><b>${esc(p.t)}</b>${end ? `<small>đến ${esc(end)}</small>` : ''}</div>
+            <div class="tk-info">
+              <span class="cd-ev-ic">${ev.icon || '💍'}</span>
+              <h3>${esc(ev.name)}</h3>
+              ${ev.side !== 'all' ? `<em class="tk-tag">${esc(SIDES[ev.side] || '')}</em>` : '<em class="tk-tag all">Hai họ</em>'}
+              <p class="tk-day">${weekday(p)}, ${pad(p.D)}.${pad(p.M)}.${p.Y}</p>
+              <p class="tk-place"><b>${esc(ev.place)}</b><br />${esc(ev.address || '')}</p>
+            </div>
           </div>
-          ${ev.map ? `<div class="cd-map" data-q="${mapQuery(ev)}"></div>` : ''}
+          <div class="tk-bot">
+            <div class="cd-ev-btns">
+              <a class="cd-btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${mapQuery(ev)}">🧭 Chỉ đường</a>
+              <a class="cd-btn" target="_blank" rel="noopener" href="${cal.google}">📅 Google Lịch</a>
+              <a class="cd-btn" href="${cal.ics}" download="dam-cuoi-${i + 1}.ics">🍎 Lịch iPhone</a>
+            </div>
+            ${ev.map ? `<div class="cd-map" data-q="${mapQuery(ev)}"></div>` : ''}
+          </div>
         </article>`;
       }).join('')}
       </div>
-      ${INVITE.dress ? `<p class="cd-note" data-a="up">👗 Trang phục gợi ý: ${esc(INVITE.dress)}</p>` : ''}
+      ${INVITE.dress ? `<p class="cd-dress" data-a="up"><span>👗</span>Trang phục gợi ý: ${esc(INVITE.dress)}</p>` : ''}
     </section>
 
     <section class="cd-sec" id="cdAlbum">
-      <h2 class="cd-h" data-a="h">Album ảnh cưới</h2>
+      ${eyebrow('Album')}
+      <h2 class="cd-h" data-a="h">Khoảnh khắc</h2>
       ${ALBUM_DEMO ? '<p class="cd-note" data-a="up">Đây là ảnh mẫu – thêm ảnh cưới thật bằng <code>npm run album</code>.</p>' : ''}
       <div class="cd-grid" id="cdGrid"></div>
       <button class="cd-btn wide" id="cdAllPhotos" data-a="up">🖼️ Xem tất cả ${PHOTOS.length} ảnh</button>
     </section>
 
     ${STORY.length ? `<section class="cd-sec" id="cdStory">
+      ${eyebrow('Chuyện tình')}
       <h2 class="cd-h" data-a="h">Chuyện của chúng mình</h2>
       <ol class="cd-story" id="cdStoryList">${STORY.map((s) => `<li data-a="left" ${dl(0.1)}><span class="cd-st-ic">${s.icon || '💗'}</span><small>${esc(s.when)}</small><h4>${esc(s.title)}</h4><p>${esc(s.text)}</p></li>`).join('')}</ol>
     </section>` : ''}
 
-    <section class="cd-sec cd-paper" id="cdRsvp">
+    <section class="cd-sec cd-card" id="cdRsvp">
+      ${eyebrow('RSVP')}
       <h2 class="cd-h" data-a="h">Xác nhận tham dự</h2>
       <p class="cd-note" data-a="up">Để chuẩn bị chu đáo, bạn xác nhận giúp chúng mình${INVITE.rsvpBy ? ` trước ngày <b>${esc(INVITE.rsvpBy)}</b>` : ''} nhé!</p>
       <div id="rsvpBox" data-a="up" ${dl(0.15)}></div>
     </section>
 
     <section class="cd-sec" id="cdWish">
+      ${eyebrow('Sổ lưu bút')}
       <h2 class="cd-h" data-a="h">Gửi lời chúc</h2>
-      <form class="cd-form" id="wishForm" data-a="up">
+      <form class="cd-form cd-glass" id="wishForm" data-a="up">
         <input id="wName" maxlength="20" required placeholder="Tên của bạn" autocomplete="nickname" />
         <textarea id="wText" maxlength="300" rows="3" required placeholder="Chúc hai bạn trăm năm hạnh phúc..."></textarea>
-        <button class="cd-btn primary wide">💌 Gửi lời chúc</button>
+        <button class="cd-btn primary wide magnet">💌 Gửi lời chúc</button>
       </form>
       <div class="cd-wishes" id="wishList"><p class="cd-note">Đang tải lời chúc...</p></div>
     </section>
 
     ${WEDDING.gift?.account ? `<section class="cd-sec" id="cdGift">
+      ${eyebrow('Mừng cưới')}
       <h2 class="cd-h" data-a="h">Hộp mừng cưới</h2>
       <p class="cd-note" data-a="up">Sự có mặt của bạn là món quà lớn nhất. Nếu ở xa không đến được, bạn có thể gửi quà mừng qua đây.</p>
       <div data-a="zoom" ${dl(0.15)}><button class="cd-btn wide cd-gift-btn" id="giftToggle"><span>🎁</span> Mở hộp mừng cưới</button></div>
       <div class="cd-gift hidden" id="giftBox">
+        <div class="cd-bank" id="cdBank">
+          <div class="bk-top"><b>${esc(WEDDING.gift.bank)}</b><i class="bk-chip"></i></div>
+          <div class="bk-num">${esc(acc)}</div>
+          <div class="bk-foot"><span>${esc(WEDDING.gift.owner)}</span><span>💍 ${esc(WEDDING.date)}</span></div>
+        </div>
         ${WEDDING.gift.bankId ? `<img loading="lazy" alt="Mã QR chuyển khoản" src="https://img.vietqr.io/image/${encodeURIComponent(WEDDING.gift.bankId)}-${encodeURIComponent(WEDDING.gift.account)}-compact2.png?addInfo=${encodeURIComponent(`Mung cuoi ${WEDDING.groom} ${WEDDING.bride}`)}&accountName=${encodeURIComponent(WEDDING.gift.owner || '')}" />` : ''}
-        <p><b>${esc(WEDDING.gift.bank)}</b></p>
-        <p class="cd-acc">${esc(WEDDING.gift.account)} <button class="cd-btn sm" id="copyAcc">📋 Copy</button></p>
-        <p>${esc(WEDDING.gift.owner)}</p>
+        <button class="cd-btn primary" id="copyAcc">📋 Copy số tài khoản</button>
       </div>
     </section>` : ''}
 
-    <section class="cd-sec cd-party" id="cdParty">
-      <div data-a="zoom"><div class="cd-party-ic">🏰</div></div>
-      <h2 class="cd-h" data-a="h">Tiệc cưới 3D online</h2>
-      <p data-a="up" ${dl(0.1)}>Không đến được, hoặc muốn “quẩy” trước? Tạo nhân vật của riêng bạn, đi dạo khuôn viên tiệc, chụp ảnh với cô dâu chú rể, nhảy, chat và voice với mọi người – ngay trên trình duyệt.</p>
-      <div data-a="up" ${dl(0.2)}><button class="cd-btn primary wide big" id="cdEnter">🎉 Vào tiệc cưới 3D</button></div>
-      <small data-a="up" ${dl(0.3)}>Nên dùng Wi‑Fi · chạy tốt trên điện thoại và máy tính</small>
+    <section class="cd-sec" id="cdParty">
+      <div class="cd-party">
+        <div data-a="zoom"><div class="cd-party-ic">🏰</div></div>
+        <h2 class="cd-h" data-a="h">Tiệc cưới 3D online</h2>
+        <p data-a="up" ${dl(0.1)}>Không đến được, hoặc muốn “quẩy” trước? Tạo nhân vật của riêng bạn, đi dạo khuôn viên tiệc, chụp ảnh với cô dâu chú rể, nhảy, chat và voice với mọi người – ngay trên trình duyệt.</p>
+        <div data-a="up" ${dl(0.2)}><button class="cd-btn wide big magnet cd-party-btn" id="cdEnter">🎉 Vào tiệc cưới 3D</button></div>
+        <small data-a="up" ${dl(0.3)}>Nên dùng Wi‑Fi · chạy tốt trên điện thoại và máy tính</small>
+      </div>
     </section>
 
     <footer class="cd-foot">
@@ -219,6 +258,7 @@ function renderCard() {
   <div class="cd-petals" aria-hidden="true">${'<i></i>'.repeat(12)}</div>
   <div class="cd-progress" id="cdProg"></div>
   <nav class="cd-dock hidden" id="cdDock">
+    <i class="cd-dock-ind" id="cdDockInd"></i>
     <button data-go="cdInvite">💌<span>Thiệp</span></button>
     <button data-go="cdEvents">📅<span>Lịch</span></button>
     <button data-go="cdAlbum">🖼️<span>Ảnh</span></button>
@@ -235,7 +275,7 @@ function renderCard() {
     </div>
     <div class="env" id="envBox" role="button" tabindex="0" aria-label="Mở thiệp">
       <div class="env-back"></div>
-      <div class="env-letter"><small>Save the date</small><b class="script">${esc(names[0].short)} & ${esc(names[1].short)}</b><span>${pad(main.D)} · ${pad(main.M)} · ${main.Y}</span></div>
+      <div class="env-letter"><small>Save the date</small><b class="script">${esc(names[0].short)} & ${esc(names[1].short)}</b><span>${dateDots}</span></div>
       <div class="env-front"></div>
       <div class="env-flap"></div>
       <span class="env-seal">囍</span>
@@ -244,6 +284,7 @@ function renderCard() {
   </div>` : ''}`;
 
   const scroller = $('#cdScroll');
+  card.querySelectorAll('.cd-h').forEach(splitHeading);
   // Cuộn trong khung thiệp (scrollIntoView ở các mục cuối sẽ kéo lệch cả khung #card)
   const goTo = (id) => { const el = $(`#${id}`); if (el) scroller.scrollTo({ top: el.offsetTop, behavior: reduceMotion.matches ? 'auto' : 'smooth' }); };
   $('#cdOpen').onclick = () => { if (!musicTouched) setMusic(true); goTo('cdInvite'); };
@@ -280,6 +321,34 @@ function renderCard() {
     card.append(h);
     setTimeout(() => h.remove(), 1000);
   });
+
+  // Máy tính: nút chính "hút" nhẹ theo con trỏ, thẻ ngân hàng nghiêng 3D theo chuột
+  if (matchMedia('(hover: hover) and (pointer: fine)').matches && !reduceMotion.matches) {
+    let magnet = null;
+    card.addEventListener('pointermove', (e) => {
+      const m = e.target.closest('.magnet');
+      if (magnet && magnet !== m) magnet.style.translate = '';
+      magnet = m;
+      if (m) {
+        const r = m.getBoundingClientRect();
+        m.style.translate = `${((e.clientX - r.left - r.width / 2) * 0.18).toFixed(1)}px ${((e.clientY - r.top - r.height / 2) * 0.3).toFixed(1)}px`;
+      }
+      const bank = e.target.closest('.cd-bank');
+      if (bank) {
+        const r = bank.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        bank.style.setProperty('--rx', `${((0.5 - y) * 16).toFixed(1)}deg`);
+        bank.style.setProperty('--ry', `${((x - 0.5) * 20).toFixed(1)}deg`);
+        bank.style.setProperty('--mx', `${(x * 100).toFixed(0)}%`);
+        bank.style.setProperty('--my', `${(y * 100).toFixed(0)}%`);
+      }
+    }, { passive: true });
+    card.addEventListener('pointerout', (e) => {
+      const bank = e.target.closest('.cd-bank');
+      if (bank && !bank.contains(e.relatedTarget)) ['--rx', '--ry'].forEach((k) => bank.style.removeProperty(k));
+    });
+  }
 
   // Gợn sóng khi bấm nút
   card.addEventListener('pointerdown', (e) => {
@@ -322,9 +391,20 @@ function renderCard() {
     coverOn = en.isIntersecting;
     $('#cdDock').classList.toggle('hidden', en.isIntersecting && !desktop.matches);
   }, { root: scroller, threshold: 0.35 }).observe($('#cdTop'));
+  const ind = $('#cdDockInd');
+  const moveInd = () => {
+    const b = $('#cdDock .on');
+    ind.style.opacity = b ? 1 : 0;
+    if (b) ind.style.transform = `translateX(${b.offsetLeft}px)`, ind.style.width = `${b.offsetWidth}px`;
+  };
   const spy = new IntersectionObserver((list) => {
-    for (const en of list) if (en.isIntersecting) card.querySelectorAll('[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === en.target.id));
+    for (const en of list) {
+      if (!en.isIntersecting) continue;
+      card.querySelectorAll('[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === en.target.id));
+      moveInd();
+    }
   }, { root: scroller, rootMargin: '-45% 0px -50% 0px' });
+  addEventListener('resize', moveInd);
   ['cdInvite', 'cdEvents', 'cdAlbum', 'cdRsvp', 'cdParty'].forEach((id) => spy.observe($(`#${id}`)));
 
   // Cuộn: thanh tiến độ, ảnh bìa trôi chậm (parallax), đường thời gian chuyện tình tự vẽ
@@ -337,20 +417,20 @@ function renderCard() {
     ticking = false;
     const st = scroller.scrollTop;
     const h = scroller.clientHeight;
-    prog.style.transform = `scaleX(${Math.min(1, st / Math.max(1, scroller.scrollHeight - h)).toFixed(4)})`;
+    const max = Math.max(1, scroller.scrollHeight - h);
+    const sr = story?.getBoundingClientRect();
+    prog.style.transform = `scaleX(${Math.min(1, st / max).toFixed(4)})`;
     if (!desktop.matches && !reduceMotion.matches) {
       if (st < h * 1.2) {
-        media.style.transform = `translate3d(0, ${(st * 0.42).toFixed(1)}px, 0)`;
-        coverText.style.transform = `translate3d(0, ${(st * 0.2).toFixed(1)}px, 0)`;
-        coverText.style.opacity = Math.max(0, 1 - st / (h * 0.6)).toFixed(3);
+        const k = Math.min(1, st / h);
+        media.style.transform = `scale(${(1 + k * 0.12).toFixed(4)})`;
+        coverText.style.transform = `translate3d(0, ${(st * 0.32).toFixed(1)}px, 0) scale(${(1 - k * 0.06).toFixed(4)})`;
+        coverText.style.opacity = Math.max(0, 1 - st / (h * 0.7)).toFixed(3);
       }
-    } else if (media.style.transform) {
+    } else if (coverText.style.transform) {
       media.style.transform = coverText.style.transform = coverText.style.opacity = '';
     }
-    if (story) {
-      const r = story.getBoundingClientRect();
-      story.style.setProperty('--p', Math.min(1, Math.max(0, (h * 0.8 - r.top) / r.height)).toFixed(3));
-    }
+    if (sr) story.style.setProperty('--p', Math.min(1, Math.max(0, (h * 0.8 - sr.top) / sr.height)).toFixed(3));
   };
   const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
   scroller.addEventListener('scroll', onScroll, { passive: true });
@@ -361,6 +441,16 @@ function renderCard() {
   renderRsvp();
   $('#wName').value = (store.get('wedding-profile')?.name || guest.to || '').slice(0, 20);
   $('#wishForm').addEventListener('submit', sendWish);
+}
+
+// Tiêu đề hiện từng chữ: tách theo từ (không xuống dòng giữa từ) rồi theo ký tự (giữ nguyên dấu tiếng Việt)
+const seg = window.Intl?.Segmenter ? new Intl.Segmenter('vi', { granularity: 'grapheme' }) : null;
+function splitHeading(el) {
+  const text = el.textContent.trim();
+  let i = 0;
+  el.setAttribute('aria-label', text);
+  el.innerHTML = text.split(/\s+/).map((w) => `<span class="w" aria-hidden="true">${(seg ? [...seg.segment(w)].map((x) => x.segment) : [...w])
+    .map((c) => `<span class="ch" style="--i:${i++}">${esc(c)}</span>`).join('')}</span>`).join(' ');
 }
 
 function openEnvelope() {
@@ -417,7 +507,10 @@ function renderAlbum() {
   if (albumDone) return;
   albumDone = true;
   const shown = PHOTOS.slice(0, 9);
-  $('#cdGrid').innerHTML = shown.map((p, i) => `<button class="cd-ph" data-i="${i}" data-a="zoom" style="aspect-ratio:${p.w || 4}/${p.h || 5};--d:${(i % 3) * 0.09}s"><img loading="lazy" src="${esc(p.thumb)}" alt="${esc(p.caption || 'Ảnh cưới')}" /></button>`).join('');
+  $('#cdGrid').innerHTML = shown.map((p, i) => {
+    const shape = i === 0 ? 'ph-xl' : (p.w || 4) > (p.h || 5) * 1.1 ? 'ph-land' : 'ph-port';
+    return `<button class="cd-ph ${shape}" data-i="${i}" data-a="curtain" style="--d:${(i % 3) * 0.1}s"><img loading="lazy" src="${esc(p.thumb)}" alt="${esc(p.caption || 'Ảnh cưới')}" />${p.caption ? `<span>${esc(p.caption)}</span>` : ''}</button>`;
+  }).join('');
   animate($('#cdGrid'));
   $('#cdGrid').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (b) openLightbox(PHOTOS, +b.dataset.i); });
 }
@@ -436,6 +529,7 @@ function startCountdown() {
   const target = new Date(INVITE.at).getTime();
   const box = $('#cdCountBox');
   const cells = [...box.querySelectorAll('b')];
+  const rings = [...box.querySelectorAll('.fg')];
   const tick = () => {
     let s = Math.floor((target - Date.now()) / 1000);
     if (s <= 0) {
@@ -446,6 +540,7 @@ function startCountdown() {
     const d = Math.floor(s / 86400); s -= d * 86400;
     const h = Math.floor(s / 3600); s -= h * 3600;
     const m = Math.floor(s / 60); s -= m * 60;
+    [d / 365, h / 24, m / 60, s / 60].forEach((f, i) => rings[i]?.style.setProperty('--f', Math.min(1, f).toFixed(4)));
     // Số nào đổi thì lật nhẹ
     [d, h, m, s].forEach((v, i) => {
       const b = cells[i];
@@ -476,7 +571,7 @@ function renderRsvp() {
   const v = mine || { name: guest.to, go: true, n: 1, side: guest.side, note: '' };
   box.innerHTML = `<form class="cd-form" id="rsvpForm">
     <input id="rName" maxlength="40" required placeholder="Họ tên *" value="${esc(v.name || '')}" />
-    <div class="cd-seg" id="rGo">
+    <div class="cd-seg" id="rGo" style="--n:2;--i:${v.go ? 0 : 1}">
       <button type="button" data-v="1" class="${v.go ? 'on' : ''}">🥳 Mình sẽ đến</button>
       <button type="button" data-v="0" class="${v.go ? '' : 'on'}">😢 Rất tiếc, không đến được</button>
     </div>
@@ -496,6 +591,7 @@ function renderRsvp() {
     const b = e.target.closest('[data-v]');
     if (!b) return;
     go = b.dataset.v === '1';
+    $('#rGo').style.setProperty('--i', go ? 0 : 1);
     $('#rGo').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
     $('#rCountRow').classList.toggle('hidden', !go);
   });
@@ -505,6 +601,9 @@ function renderRsvp() {
     e.preventDefault();
     n = Math.min(10, Math.max(1, n + +b.dataset.d));
     $('#rN').textContent = n;
+    $('#rN').classList.remove('tick');
+    void $('#rN').offsetWidth;
+    $('#rN').classList.add('tick');
   });
   $('#rsvpForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -533,11 +632,22 @@ function renderRsvp() {
 // ---------- Lời chúc (dùng chung sổ lưu bút với tiệc 3D) ----------
 let wishes = [];
 let wishesLoaded = false;
+// Từ 4 lời chúc trở lên: "bức tường yêu thương" 2 hàng chạy ngang ngược chiều nhau (chạm/rê chuột để dừng)
 function renderWishes(fresh = false) {
-  $('#wishList').innerHTML = wishes.length
-    ? [...wishes].reverse().slice(0, 30).map((w, i) => `<div class="cd-wish${fresh && !i ? ' new' : ''}" data-a="up" style="--d:${Math.min(i, 5) * 0.08}s"><p>${esc(w.text)}</p><small>— <b>${esc(w.name)}</b>${w.sub ? ` · ${esc(w.sub)}` : ''}</small></div>`).join('')
-    : '<p class="cd-note">Chưa có lời chúc nào. Hãy là người đầu tiên! ✍️</p>';
-  animate($('#wishList'));
+  const list = [...wishes].reverse().slice(0, 30);
+  const item = (w, i, dup) => `<div class="cd-wish${fresh && !i && !dup ? ' new' : ''}"${dup ? ' aria-hidden="true"' : ''}><p>${esc(w.text)}</p><small>— <b>${esc(w.name)}</b>${w.sub ? ` · ${esc(w.sub)}` : ''}</small></div>`;
+  const box = $('#wishList');
+  box.classList.toggle('wall', list.length >= 4);
+  if (!list.length) {
+    box.innerHTML = '<p class="cd-note">Chưa có lời chúc nào. Hãy là người đầu tiên! ✍️</p>';
+  } else if (list.length < 4) {
+    box.innerHTML = `<div data-a="up">${list.map((w, i) => item(w, i)).join('')}</div>`;
+  } else {
+    const rows = [list.filter((_, i) => i % 2 === 0), list.filter((_, i) => i % 2 === 1)];
+    box.innerHTML = rows.map((r, k) => `<div class="cd-wall-row${k ? ' rev' : ''}" data-a="${k ? 'right' : 'left'}" ${dl(k * 0.15)}>
+      <div class="cd-wall-track" style="--t:${Math.max(24, r.length * 7)}s">${r.map((w) => item(w, list.indexOf(w))).join('')}${r.map((w) => item(w, 1, true)).join('')}</div></div>`).join('');
+  }
+  animate(box);
 }
 async function loadWishes() {
   if (wishesLoaded) return;
@@ -672,7 +782,7 @@ async function renderAdmin() {
   card.innerHTML = `<main class="cd ad">
     <h1 class="script">${esc(couple)}</h1>
     <p class="cd-note">Trang quản lý thiệp mời – chỉ mình bạn biết đường dẫn này.</p>
-    <div class="cd-seg" id="adTabs"><button class="on" data-t="links">🔗 Tạo link mời</button><button data-t="rsvp">✅ Xác nhận</button><button data-t="wish">💌 Lời chúc</button></div>
+    <div class="cd-seg" id="adTabs" style="--n:3;--i:0"><button class="on" data-t="links">🔗 Tạo link mời</button><button data-t="rsvp">✅ Xác nhận</button><button data-t="wish">💌 Lời chúc</button></div>
     <section data-p="links">
       <p class="cd-note">Mỗi dòng một khách: <code>Tên hiển thị | trai</code> hoặc <code>| gai</code> (bỏ trống = cả hai bên).</p>
       <textarea id="adList" rows="7">${esc(lines)}</textarea>
@@ -686,7 +796,7 @@ async function renderAdmin() {
   $('#adTabs').addEventListener('click', (e) => {
     const b = e.target.closest('[data-t]');
     if (!b) return;
-    $('#adTabs').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    $('#adTabs').querySelectorAll('button').forEach((x, i) => { x.classList.toggle('on', x === b); if (x === b) $('#adTabs').style.setProperty('--i', i); });
     card.querySelectorAll('[data-p]').forEach((p) => p.classList.toggle('hidden', p.dataset.p !== b.dataset.t));
   });
   let made = [];

@@ -8,8 +8,9 @@ Mở link là thấy **thiệp cưới 2D** nhẹ, mở nhanh trên điện tho�
 
 - **Bì thư mở đầu**: "Thân gửi <tên khách>", chạm vào con dấu 囍 → nắp thư lật, thư trượt ra, hoa bung (lần chạm này cũng bật nhạc nền).
 - **Nhạc nền**: dùng chung bài YouTube với màn hình sân khấu tiệc 3D (`WEDDING.music.youtube`, âm lượng `cardVolume`), khung video được ẩn. YouTube lỗi/bị chặn thì tự dùng file `music.src` hoặc nhạc tự sinh. Nút nhạc góc trên có sóng nhạc chạy khi đang phát.
-- **Bìa thiệp**: monogram chữ cái đầu tên, ảnh cưới tự đổi kiểu Ken Burns, tên viết tay hiện dần, ảnh trôi chậm khi cuộn (parallax), cánh hoa rơi khắp thiệp.
-- **Hiệu ứng**: từng phần hiện dần khi cuộn (trượt, phóng, mờ → rõ, lật số đếm ngược, đóng dấu chữ Hỷ, đường thời gian tự vẽ), nút có gợn sóng và ánh sáng lướt, chạm chỗ trống nảy trái tim, thanh tiến độ đọc. Tự tắt khi máy bật "Giảm chuyển động".
+- **Giao diện tông hồng nhẹ**: nền "cực quang" hồng – đào – tím nhạt trôi chậm có hạt giấy, các phần là thẻ kính trắng bo tròn, tiêu đề serif nghiêng lớn kèm nhãn đánh số (01 · Đếm ngược…), dải chữ chạy nghiêng "Save the date ✦ …".
+- **Bìa thiệp**: ảnh cưới trong khung vòm (tự đổi ảnh kiểu Ken Burns), huy hiệu chữ chạy vòng tròn, monogram chữ cái đầu tên, tên viết tay hiện dần, ảnh phóng nhẹ + chữ trôi khi cuộn, cánh hoa rơi khắp thiệp.
+- **Hiệu ứng**: tiêu đề hiện từng chữ, từng phần hiện dần khi cuộn (trượt, phóng, mờ → rõ), ô đếm ngược có vòng tiến độ và số lật, lịch trình dạng vé có khấc, album lưới bento với ảnh kéo rèm, đường thời gian tự vẽ, tường lời chúc chạy ngang 2 hàng, thẻ ngân hàng mừng cưới nghiêng 3D theo chuột, nút chọn có viên trượt, thanh điều hướng có viên chỉ báo trượt, nút hút theo con trỏ (máy tính), gợn sóng khi bấm, chạm chỗ trống nảy trái tim. Tự tắt khi máy bật "Giảm chuyển động".
 - **Responsive**: điện thoại nhỏ (320px), điện thoại xoay ngang, máy tính bảng (2 cột lịch trình, 3 cột album) và máy tính (ảnh bìa cố định bên trái, nội dung cuộn bên phải).
 - **Lời mời**: chữ Hỷ, câu trích dẫn, thông tin bố mẹ hai họ, tên khách được mời, ngày giờ cả âm lịch.
 - **Đếm ngược** tới giờ cưới.
